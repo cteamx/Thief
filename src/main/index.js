@@ -226,7 +226,7 @@ function checkUpdate() {
       }
       dialog.showMessageBox(options, function (index) {
         if (index == 0) {
-          shell.openExternal('https://github.com/cteams/Thief-Book/releases')
+          shell.openExternal('https://github.com/cteamx/Thief-Book/releases')
         }
       })
     } else {
@@ -271,7 +271,7 @@ function createKey() {
     }
     dialog.showMessageBox(options, function (index) {
       if (index == 0) {
-        shell.openExternal('https://github.com/cteams/Thief-Book/blob/master/README.md')
+        shell.openExternal('https://github.com/cteamx/Thief-Book/blob/master/README.md')
       }
     })
 
@@ -291,7 +291,7 @@ function createTray() {
     {
       label: '关于',
       click() {
-        shell.openExternal('https://github.com/cteams/Thief-Book')
+        shell.openExternal('https://github.com/cteamx/Thief-Book')
       }
     },
     {

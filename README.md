@@ -10,11 +10,11 @@
 
 # VScode
 
-Thief-Book 为用户提供 Vscode 版本，具体请看 https://github.com/cteams/Thief-Book-VSCode
+Thief-Book 为用户提供 Vscode 版本，具体请看 https://github.com/cteamx/Thief-Book-VSCode
 
 # 下载地址
 
-https://github.com/cteams/Thief-Book/releases
+https://github.com/cteamx/Thief-Book/releases
 
 # 版本区分
 
@@ -47,11 +47,11 @@ GBK 会出现乱码，请勾选乱码选项
 
 **Mac**
 
-https://github.com/cteams/Thief-Book/blob/master/images/mac.gif
+https://github.com/cteamx/Thief-Book/blob/master/images/mac.gif
 
 **Win**
 
-https://github.com/cteams/Thief-Book/blob/master/images/win.gif
+https://github.com/cteamx/Thief-Book/blob/master/images/win.gif
 
 **鼠标模式**
 
@@ -59,7 +59,7 @@ https://github.com/cteams/Thief-Book/blob/master/images/win.gif
 
 鼠标左键下一页，右键上一页，鼠标移开自动隐藏
 
-https://github.com/cteams/Thief-Book/blob/master/images/mouse.gif
+https://github.com/cteamx/Thief-Book/blob/master/images/mouse.gif
 
 # 快捷键
 
@@ -203,4 +203,3 @@ or
 加微信，备注拉人
 
 ![wechat](./images/wechat.jpg)
-
