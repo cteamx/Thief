@@ -1,8 +1,71 @@
-import { app, BrowserWindow, Menu, Tray, globalShortcut, ipcMain, shell, dialog } from 'electron'
+import { app, BrowserWindow, Menu, Tray, globalShortcut, ipcMain, shell, dialog, nativeImage, TouchBar } from 'electron'
 import db from './utils/db'
 import book from './utils/book'
 import osUtil from './utils/osUtil'
+import stock from './utils/stock'
 import request from 'request'
+
+const { TouchBarButton, TouchBarSpacer } = TouchBar
+
+let touchBarText = null;
+
+function createTouchBarText() {
+  touchBarText = new TouchBarButton({
+    label: '',
+    backgroundColor: '#363636',
+    click: () => {
+      BossKey(2);
+    }
+  })
+
+  var touchBar = new TouchBar({
+    items: [
+      touchBarText
+    ]
+  })
+
+  return touchBar;
+}
+
+function createTouchBarButton() {
+  let button1 = new TouchBarButton({
+    label: '🤒 Previous',
+    backgroundColor: '#a923ce',
+    click: () => {
+      PreviousPage();
+    }
+  })
+
+  let button2 = new TouchBarButton({
+    label: '🤪 Next',
+    backgroundColor: '#2352ce',
+    click: () => {
+      NextPage();
+    }
+  })
+
+  let button3 = new TouchBarButton({
+    label: '👻 Fuck !',
+    backgroundColor: '#ce2323',
+    click: () => {
+      BossKey(2);
+    }
+  })
+
+  let touchBar = new TouchBar({
+    items: [
+      button1,
+      new TouchBarSpacer({ size: 'small' }),
+      button2,
+      new TouchBarSpacer({ size: 'small' }),
+      button3,
+      new TouchBarSpacer({ size: 'small' })
+    ]
+  })
+
+  return touchBar;
+}
+
 
 /**
  * Set `__static` path to static files in production
@@ -14,9 +77,16 @@ if (process.env.NODE_ENV !== 'development') {
 
 let tray;
 let settingWindow;
+let soWindow;
 let desktopWindow;
+let desktopBarWindow;
 
 const isMac = 'darwin' === process.platform;
+
+const soURL = process.env.NODE_ENV === 'development'
+  ? `http://localhost:9080/#/so`
+  : `file://${__dirname}/index.html#so`
+
 const settingURL = process.env.NODE_ENV === 'development'
   ? `http://localhost:9080/#/setting`
   : `file://${__dirname}/index.html#setting`
@@ -27,9 +97,6 @@ const desktopURL = process.env.NODE_ENV === 'development'
 
 
 function init() {
-  createKey();
-  createTray();
-
   if (isMac) {
     createSetting();
 
@@ -39,6 +106,8 @@ function init() {
       setTimeout(() => {
         BossKey(1);
       }, 1000);
+    } else if (db.get('curr_model') === '3') {
+      db.set("curr_model", "1")
     }
   } else {
     createWindownDesktop();
@@ -47,7 +116,40 @@ function init() {
       BossKey(1);
     }, 1000);
   }
+
+  createKey();
+  createTray();
 }
+
+function createSoSetting() {
+  /**
+   * Initial window options
+   */
+
+  soWindow = new BrowserWindow({
+    title: '搜 索',
+    useContentSize: true,
+    width: 334,
+    height: 540,
+    // resizable: false,
+    maximizable: false,
+    minimizable: false,
+  })
+
+  let webContents = soWindow.webContents;
+  webContents.on('did-finish-load', () => {
+    webContents.setZoomFactor(1);
+    webContents.setVisualZoomLevelLimits(1, 1);
+    webContents.setLayoutZoomLevelLimits(0, 0);
+  })
+
+  soWindow.loadURL(soURL)
+
+  soWindow.on('closed', () => {
+    soWindow = null
+  })
+}
+
 
 function createWindownSetting() {
   /**
@@ -57,9 +159,9 @@ function createWindownSetting() {
   settingWindow = new BrowserWindow({
     title: '设 置',
     useContentSize: true,
-    width: 497,
-    height: 641,
-    // resizable: false,
+    width: 715,
+    height: 630,
+    resizable: false,
     maximizable: false,
     minimizable: false,
   })
@@ -82,8 +184,6 @@ function createWindownDesktop() {
   /**
    * Initial window options
    */
-  const titleBarStyle = isMac ? 'hidden' : 'default';
-
   desktopWindow = new BrowserWindow({
     useContentSize: true,
     width: 856,
@@ -109,10 +209,49 @@ function createWindownDesktop() {
 
   desktopWindow.setSkipTaskbar(true);
 
+  desktopWindow.setTouchBar(createTouchBarButton())
+
   desktopWindow.on('closed', () => {
     desktopWindow = null
   })
 }
+
+function createWindownBarDesktop() {
+  /**
+   * Initial window options
+   */
+  desktopBarWindow = new BrowserWindow({
+    useContentSize: true,
+    width: 88,
+    height: 23,
+    resizable: true,
+    frame: false,
+    transparent: true,
+    // maximizable: false
+    // y: 600,
+    // x: 300
+  })
+
+  desktopBarWindow.setTouchBar(createTouchBarText())
+
+  let webContents = desktopBarWindow.webContents;
+  webContents.on('did-finish-load', () => {
+    webContents.setZoomFactor(1);
+    webContents.setVisualZoomLevelLimits(1, 1);
+    webContents.setLayoutZoomLevelLimits(0, 0);
+  })
+
+  desktopBarWindow.loadURL(desktopURL)
+
+  desktopBarWindow.setAlwaysOnTop(true);
+
+  desktopBarWindow.setSkipTaskbar(true);
+
+  desktopBarWindow.on('closed', () => {
+    desktopBarWindow = null
+  })
+}
+
 
 function setText(text) {
   global.text = {
@@ -130,7 +269,6 @@ function MouseModel(e) {
 
     desktopWindow.reload();
 
-
     setTimeout(() => {
       let text = osUtil.getTime();
       setText(text);
@@ -143,6 +281,7 @@ let autoPageTime;
 
 function AutoPage() {
   if (db.get('auto_page') === '1') {
+    clearInterval(autoPageTime);
     db.set("auto_page", "0")
     var second = db.get('second');
     autoPageTime = setInterval(function () {
@@ -154,39 +293,83 @@ function AutoPage() {
   }
 }
 
-function NextPage() {
-  let text = book.getNextPage();
+let autoStockTime;
 
-  if (db.get('curr_model') === '1') {
+function AutoStock() {
+  let display_model = db.get('display_model');
+  let display_shares_list = db.get('display_shares_list');
+
+  if (display_model === '2') {
+    clearInterval(autoStockTime);
+
+    autoStockTime = setInterval(function () {
+      stock.getData(display_shares_list[0], function (text) {
+        updateText(text);
+      })
+    }, parseInt(5) * 1000);
+  } else {
+    clearInterval(autoStockTime);
+  }
+}
+
+function updateText(text) {
+  let curr_model = db.get('curr_model');
+
+  if (curr_model === '1') {
     tray.setTitle(text);
-  } else if (db.get('curr_model') === '2') {
+  } else if (curr_model === '2') {
+    tray.setTitle("");
     setText(text);
     if (desktopWindow != null) {
       desktopWindow.webContents.send('text', 'ping');
     }
+  } else if (curr_model === '3') {
+    tray.setTitle("");
+
+    if (desktopBarWindow != null) {
+      setText(osUtil.getCpu());
+      desktopBarWindow.webContents.send('text', 'ping');
+    }
+
+    touchBarText.label = text;
+  }
+}
+
+function NextPage() {
+  let display_model = db.get('display_model');
+  let display_shares_list = db.get('display_shares_list');
+
+  if (display_model === '2') {
+    stock.getData(display_shares_list[0], function (text) {
+      updateText(text);
+    })
+  } else {
+    let text = book.getNextPage();
+    updateText(text);
   }
 }
 
 function PreviousPage() {
-  let text = book.getPreviousPage();
+  let display_model = db.get('display_model');
+  let display_shares_list = db.get('display_shares_list');
 
-  if (db.get('curr_model') === '1') {
-    tray.setTitle(text);
-  } else if (db.get('curr_model') === '2') {
-    setText(text);
-    if (desktopWindow != null) {
-      desktopWindow.webContents.send('text', 'ping');
-    }
+  if (display_model === '2') {
+    stock.getData(display_shares_list[0], function (text) {
+      updateText(text);
+    })
+  } else {
+    let text = book.getPreviousPage();
+    updateText(text);
   }
 }
 
 function BossKey(type) {
   let text = osUtil.getTime();
+  let curr_model = db.get('curr_model');
 
-  if (db.get('curr_model') === '1') {
+  if (curr_model === '1') {
     tray.setTitle(text);
-  }
-  if (db.get('curr_model') === '2') {
+  } else if (curr_model === '2') {
     tray.setTitle("");
     setText(text);
 
@@ -204,6 +387,15 @@ function BossKey(type) {
         }
       }
     }
+  } else if (curr_model === '3') {
+    tray.setTitle("");
+
+    if (desktopBarWindow != null) {
+      setText(osUtil.getCpu());
+      desktopBarWindow.webContents.send('text', 'ping');
+    }
+    // TouchBar 模式
+    touchBarText.label = '🚄=[😘🐶🐱🐭🐹🐸🐯🐵🐙🐼🐨🐮🐥🦉🐍🦞🦙🐉🦂🦀🦐🐍🐢🐄🦍🦏🐓🐇🐷]';
   }
 }
 
@@ -216,7 +408,7 @@ function checkUpdate() {
     console.log(body);
     var newVersion = parseFloat(body);
 
-    var currVersion = 1.0
+    var currVersion = 3.0
     if (newVersion > currVersion) {
       const options = {
         type: 'info',
@@ -245,21 +437,67 @@ function Exit() {
   app.quit();
 }
 
+var key_previousx = null;
+var key_nextx = null;
+var key_bossx = null;
+var key_autox = null;
+
 function createKey() {
   try {
-    globalShortcut.register(db.get('key_previous'), function () {
+    let xkey_previous = db.get('key_previous');
+    // 如果指令有问题，则不注册
+    if (!xkey_previous || xkey_previous.indexOf('+') < 0) {
+      return
+    }
+    // 注册之前删除上一次注册的全局快捷键
+    if (key_previousx != null) {
+      globalShortcut.unregister(key_previousx)
+    }
+
+    key_previousx = xkey_previous
+    globalShortcut.register(xkey_previous, function () {
       PreviousPage();
     })
 
-    globalShortcut.register(db.get('key_next'), function () {
+    let xkey_next = db.get('key_next');
+    // 如果指令有问题，则不注册
+    if (!xkey_next || xkey_next.indexOf('+') < 0) {
+      return
+    }
+    // 注册之前删除上一次注册的全局快捷键
+    if (key_nextx != null) {
+      globalShortcut.unregister(key_nextx)
+    }
+    key_nextx = xkey_next
+    globalShortcut.register(xkey_next, function () {
       NextPage();
     })
 
-    globalShortcut.register(db.get('key_boss'), function () {
+    let xkey_boss = db.get('key_boss');
+    // 如果指令有问题，则不注册
+    if (!xkey_boss || xkey_boss.indexOf('+') < 0) {
+      return
+    }
+    // 注册之前删除上一次注册的全局快捷键
+    if (key_bossx != null) {
+      globalShortcut.unregister(key_bossx)
+    }
+    key_bossx = xkey_boss
+    globalShortcut.register(xkey_boss, function () {
       BossKey(2);
     })
 
-    globalShortcut.register(db.get('key_auto'), function () {
+    let xkey_auto = db.get('key_auto');
+    // 如果指令有问题，则不注册
+    if (!xkey_auto || xkey_auto.indexOf('+') < 0) {
+      return
+    }
+    // 注册之前删除上一次注册的全局快捷键
+    if (key_autox != null) {
+      globalShortcut.unregister(key_autox)
+    }
+    key_autox = xkey_auto
+    globalShortcut.register(xkey_auto, function () {
       AutoPage();
     })
   } catch (error) {
@@ -308,7 +546,7 @@ function createTray() {
         type: "separator"
       },
       {
-        label: '任务栏版',
+        label: '任务栏模式',
         type: 'radio',
         checked: db.get('curr_model') === '1',
         click() {
@@ -318,17 +556,28 @@ function createTray() {
             desktopWindow.close();
           }
 
+          if (desktopBarWindow != null) {
+            desktopBarWindow.close();
+          }
+
           BossKey(1);
         }
       },
       {
-        label: '桌面版',
+        label: '桌面模式',
         type: 'radio',
         checked: db.get('curr_model') === '2',
         click() {
+          db.set("curr_model", "2")
+
+          if (desktopBarWindow != null) {
+            desktopBarWindow.close();
+          }
+
           if (desktopWindow === "null" || desktopWindow === "undefined" || typeof (desktopWindow) === "undefined") {
             createWindownDesktop();
           } else {
+
             try {
               desktopWindow.show();
             } catch (error) {
@@ -336,13 +585,38 @@ function createTray() {
             }
           }
 
-          db.set("curr_model", "2")
-
           setTimeout(() => {
             BossKey(1);
           }, 1000);
         }
-      }
+      },
+      {
+        label: 'TouchBar模式',
+        type: 'radio',
+        checked: db.get('curr_model') === '3',
+        click() {
+          db.set("curr_model", "3")
+
+          if (desktopWindow != null) {
+            desktopWindow.close();
+          }
+
+          if (desktopBarWindow === "null" || desktopBarWindow === "undefined" || typeof (desktopBarWindow) === "undefined") {
+            createWindownBarDesktop();
+          } else {
+
+            try {
+              desktopBarWindow.show();
+            } catch (error) {
+              createWindownBarDesktop();
+            }
+          }
+
+          setTimeout(() => {
+            BossKey(2);
+          }, 1000);
+        }
+      },
     );
   } else {
   }
@@ -352,7 +626,34 @@ function createTray() {
       type: "separator"
     },
     {
-      label: '鼠标模式',
+      label: '小说摸鱼',
+      type: 'radio',
+      checked: db.get('display_model') === '1',
+      click() {
+        clearInterval(autoStockTime);
+        db.set("display_model", "1");
+        BossKey(1);
+      }
+    },
+    {
+      label: '股票摸鱼',
+      type: 'radio',
+      checked: db.get('display_model') === '2',
+      click() {
+        db.set("display_model", "2");
+        let display_shares_list = db.get('display_shares_list');
+
+        stock.getData(display_shares_list[0], function (text) {
+          updateText(text);
+          AutoStock();
+        })
+      }
+    },
+    {
+      type: "separator"
+    },
+    {
+      label: '鼠标翻页',
       type: 'checkbox',
       click(e) {
         MouseModel(e);
@@ -389,6 +690,20 @@ function createTray() {
       }
     },
     {
+      label: '搜索',
+      click() {
+        if (soWindow === "null" || soWindow === "undefined" || typeof (soWindow) === "undefined") {
+          createSoSetting();
+        } else {
+          try {
+            soWindow.show();
+          } catch (error) {
+            createSoSetting();
+          }
+        }
+      }
+    },
+    {
       label: '设置',
       click() {
         if (settingWindow === "null" || settingWindow === "undefined" || typeof (settingWindow) === "undefined") {
@@ -415,6 +730,7 @@ function createTray() {
   );
 
 
+  // tray = new Tray(nativeImage.createEmpty())
   tray = new Tray(menubarLogo)
   tray.setContextMenu(Menu.buildFromTemplate(menuList))
   BossKey();
@@ -429,9 +745,21 @@ function createSetting() {
 }
 
 ipcMain.on('bg_text_color', function () {
+  tray.destroy();
+  createKey();
+  createTray();
+
   if (desktopWindow != null) {
     desktopWindow.webContents.send('bg_text_color', 'ping');
   }
+
+  if (desktopBarWindow != null) {
+    desktopBarWindow.webContents.send('bg_text_color', 'ping');
+  }
+})
+
+ipcMain.on('jump_page', function () {
+  NextPage();
 })
 
 ipcMain.on('MouseAction', function (e, v) {
@@ -468,6 +796,11 @@ app.on('ready', init)
 app.on('window-all-closed', () => {
   db.set("auto_page", "1");
   db.set("is_mouse", "0");
+
+  if (isMac) {
+    db.set("curr_model", "1")
+  } 
+ 
   if (process.platform !== 'darwin') {
     app.quit()
   }

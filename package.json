@@ -1,7 +1,7 @@
 {
   "name": "thief-book",
-  "version": "2.0.0",
-  "author": "lauix <lauixData@gamil.com>",
+  "version": "3.0.0",
+  "author": "SanJin <sanjinhub@gamil.com>",
   "description": "An electron-vue project",
   "license": "MIT",
   "main": "./dist/electron/main.js",
@@ -62,6 +62,7 @@
     "iconv-lite": "^0.5.0",
     "lodash-id": "^0.14.0",
     "lowdb": "^1.0.0",
+    "request": "^2.88.0",
     "vue": "^2.5.16",
     "vue-electron": "^1.0.6",
     "vue-router": "^3.0.1",

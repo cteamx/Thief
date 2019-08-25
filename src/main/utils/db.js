@@ -33,8 +33,6 @@ export default {
         }
 
         this.file_json = new FileSync(path.join(STORE_PATH, '/thief_data.json'));
-        
-        console.log(this.file_json);
 
         this.db_util = low(this.file_json)
         this.db_util._.mixin(LodashId)
@@ -101,6 +99,22 @@ export default {
 
         if (!this.db_util.has('is_mouse').value()) {
             this.db_util.set('is_mouse', "0").write()
+        }
+
+        if (!this.db_util.has('is_display_page').value()) {
+            this.db_util.set('is_display_page', true).write()
+        }
+
+        // if (!this.db_util.has('is_display_joke').value()) {
+        //     this.db_util.set('is_display_joke', false).write()
+        // }
+
+        if (!this.db_util.has('display_model').value()) {
+            this.db_util.set('display_model', '1').write()
+        }
+
+        if (!this.db_util.has('display_shares_list').value()) {
+            this.db_util.set('display_shares_list', []).write()
         }
 
         let isMac = 'darwin' === process.platform;

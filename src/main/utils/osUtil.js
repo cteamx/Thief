@@ -23,5 +23,11 @@ export default {
     getTime() {
         var uptime = os.uptime();
         return "您的开机时长：" + this.dealTime(uptime);
+    },
+    getCpu() {
+        var freeMem = os.freemem();
+        var totalMem = os.totalmem();
+        var men = ((totalMem - freeMem) / 1024 / 1024 / 1024).toFixed(1) + "G/" + (totalMem / 1024 / 1024 / 1024).toFixed(0) + "G";
+        return men;
     }
 };

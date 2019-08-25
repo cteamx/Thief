@@ -22,7 +22,6 @@ export default {
     },
     getFileName() {
         var file_name = this.filePath.split("/").pop();
-        console.log(file_name);
     },
     getPage(type) {
         let curr_page = db.get("current_page");
@@ -67,7 +66,6 @@ export default {
                 data = iconv.decode(data, 'utf-8');
             }
         } catch (error) {
-            console.log(error)
             return "TXT小说路径不存在或路径不正确"
         }
 
@@ -83,60 +81,82 @@ export default {
 
         if (is_english === true) {
             if (curr_model === "1") {
-                this.page_size = db.get("page_size") * 2;
+                this.page_size = db.get("page_size");
             } else {
-                this.page_size = db.get("page_size") * 2 * 5;
+                this.page_size = db.get("page_size");
             }
         } else {
             if (curr_model === "1") {
                 this.page_size = db.get("page_size");
             } else {
-                this.page_size = db.get("page_size") * 5;
+                this.page_size = db.get("page_size");
             }
+        }
+    },
+    soText(so) {
+        this.init();
+        // 小说搜索
+        let text = this.readFile();
+        this.getSize(text);
+
+        // 存储搜索结果
+        var soResult = [];
+
+        // 正则
+        var re = new RegExp(so, "g");
+        var result = "";
+
+        do {
+            try {
+                result = re.exec(text);
+
+                // 分页位置
+                var page = Math.ceil(result.index / this.page_size);
+
+                // 附近内容
+                var textx = text.substring(result.index - 30, result.index + 31)
+
+                // 加入结果 数组
+                soResult.push({
+                    index: result.index,
+                    page: page,
+                    text: textx
+                })
+            } catch (error) { }
+        }
+        while (result != null)
+
+        return soResult;
+    },
+    makePage(text) {
+        this.getStartEnd();
+        this.updatePage();
+        if (db.get("is_display_page")) {
+            var page_info = this.curr_page_number.toString() + "/" + this.page.toString();
+            return text.substring(this.start, this.end) + "    " + page_info;
+        } else {
+            return text.substring(this.start, this.end)
         }
     },
     getPreviousPage() {
         this.init();
-
         let text = this.readFile();
-
         this.getSize(text);
         this.getPage("previous");
-        this.getStartEnd();
-
-        var page_info = this.curr_page_number.toString() + "/" + this.page.toString();
-
-        this.updatePage();
-        return text.substring(this.start, this.end) + "    " + page_info;
+        return this.makePage(text);
     },
     getNextPage() {
         this.init();
-
         let text = this.readFile();
-
         this.getSize(text);
         this.getPage("next");
-        this.getStartEnd();
-
-        var page_info = this.curr_page_number.toString() + "/" + this.page.toString();
-
-        this.updatePage();
-
-        return text.substring(this.start, this.end) + "    " + page_info;
+        return this.makePage(text);
     },
     getJumpingPage() {
         this.init();
-
         let text = this.readFile();
-
         this.getSize(text);
         this.getPage("curr");
-        this.getStartEnd();
-
-        var page_info = this.curr_page_number.toString() + "/" + this.page.toString();
-
-        this.updatePage();
-
-        return text.substring(this.start, this.end) + "    " + page_info;
+        return this.makePage(text);
     }
 };

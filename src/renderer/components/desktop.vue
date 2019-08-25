@@ -96,6 +96,7 @@ export default {
     -webkit-app-region: drag;
     height: 100%;
     padding: 0px 10px;
+    margin-top: 3px;
   }
 
   .texts {

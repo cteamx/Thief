@@ -2,7 +2,7 @@
 
 # 介绍
 
-**Thief-Book** 是一款真正的`摸鱼神器`，可以更加隐秘性大胆的看小说。
+**Thief-Book** 是一款真正的最强`摸鱼神器`，可以更加隐秘性大胆的看小说，炒股。
 
 - **隐蔽性** 自定义透明背景，随意调整大小，完美融入各种软件界面
 - **快捷性** 三个快捷键，实现完美的摸鱼
@@ -10,7 +10,7 @@
 
 # VScode
 
-Thief-Book 为用户提供 Vscode 版本，具体请看 https://github.com/cteamx/Thief-Book-VSCode
+**Thief-Book** 为用户提供 **Vscode** 版本，具体请看 https://github.com/cteamx/Thief-Book-VSCode
 
 # 下载地址
 
@@ -18,24 +18,56 @@ https://github.com/cteamx/Thief-Book/releases
 
 # 版本区分
 
-- MAC 支持 桌面版 + 任务栏版
-- WIN 只有 桌面版
+- **MAC** 支持 桌面模式 + 任务栏模式 + TouchBar 模式
+- **WIN** 只有 桌面模式
 
 # 使用效果
 
-Mac 任务栏版本，任务栏过多会自动隐藏
+### Mac 任务栏模式
+
+> 任务栏过多会自动隐藏
+
+小说演示
 
 ![1.png](./images/1.png)
 
-此版本可以随意拖拽，自定义大小，自定义背景颜色和文字颜色
+股票演示
+
+![1_1.png](./images/1_1.png)
+
+### Mac + Win 桌面模式
+
+> 此版本可以随意拖拽，自定义大小，自定义背景颜色和文字颜色
+>
+> Mac 版本，支持 TouchBar 翻页 和 老板键
+
+小说演示
 
 ![2.png](./images/2.png)
 
-idea 使用效果
+股票演示
+
+![2_2.png](./images/2_2.png)
+
+Mac TouchBar 按键
+
+![x1.jpeg](./images/x1.jpeg)
+
+### Mac TouchBar 模式
+
+> Mac 的朋友们有福了，这可以说是 Thief-Book 最强大的功能了
+>
+> 注意：必须获取内存框的焦点，才能使用 Touch Bar
+
+![x.jpeg](./images/x.jpeg)
+
+### 实际使用效果
+
+idea 编辑器 使用效果
 
 ![2.png](./images/4.png)
 
-设置界面
+### 设置界面
 
 GBK 会出现乱码，请勾选乱码选项
 
@@ -60,6 +92,18 @@ https://github.com/cteamx/Thief-Book/blob/master/images/win.gif
 鼠标左键下一页，右键上一页，鼠标移开自动隐藏
 
 https://github.com/cteamx/Thief-Book/blob/master/images/mouse.gif
+
+# 注意事项
+
+- **股票** ( 5秒更新一次 ) , 显示格式为  `当前价格`,`跌涨百分比`
+
+- **股票代码格式**，列：贵州茅台 ( 600519.SH ) ，设置里写 **sh600519**
+
+- **TouchBar模式** 必须获取内存框的焦点，才能使用 **Touch Bar**
+
+- **乱码问题** 勾选乱码选择框即可
+
+  
 
 # 快捷键
 
@@ -159,9 +203,13 @@ or
 
 or
 
-Json文件路径：C:\Users\Administrator\AppData\Roaming\thief-book
+Json文件路径
+
+Win: C:\Users\Administrator\AppData\Roaming\thief-book
 
 快捷键设置错打开会报错，找到 thief_data.json 没有就搜索 thief_data.json 修改里面的快捷键信息即可
+
+Mac：open -e ~/Library/Application\ Support/thief-book/thief_data.json （执行这个编辑即可）
 
 or
 
@@ -169,29 +217,8 @@ or
 
 # TODO
 
-- [x] 任务栏版本
-- [x] 桌面版本
-- [x] 设置小说路径
-- [x] 设置当前页数
-- [x] 设置每页字数
-- [x] 老板键
-- [x] 上一页
-- [x] 下一页
-- [x] 英文小说支持
-- [x] 自定义换行符号
-- [x] 自定义桌面版背景
-- [x] 自定义桌面版字体颜色
-- [x] 跨平台兼容
-- [x] 桌面版随意拖动，随意调整大小
-- [x] 桌面版窗口永远顶置
-- [x] 自定义文字大小
-- [x] 自动翻页
-- [x] 自定义快捷键
-- [x] 支持 GBK
-- [x] 鼠标模式
 - [ ] 多本小说管理
 - [ ] 在线小说下载
-- [ ] 股票支持
 
 ## 关于
 
@@ -200,6 +227,6 @@ or
 
 ## 反馈群
 
-加微信，备注拉人
+加微信，备注 摸鱼 拉人
 
 ![wechat](./images/wechat.jpg)
