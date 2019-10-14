@@ -78,19 +78,19 @@ export default {
         }
 
         if (!this.db_util.has('key_next').value()) {
-            this.db_util.set('key_next', "CommandOrControl+Alt+.").write()
+            this.db_util.set('key_next', "CmdOrCtrl+Alt+.").write()
         }
 
         if (!this.db_util.has('key_previous').value()) {
-            this.db_util.set('key_previous', "CommandOrControl+Alt+,").write()
+            this.db_util.set('key_previous', "CmdOrCtrl+Alt+,").write()
         }
 
         if (!this.db_util.has('key_boss').value()) {
-            this.db_util.set('key_boss', "CommandOrControl+Alt+M").write()
+            this.db_util.set('key_boss', "CmdOrCtrl+Alt+M").write()
         }
 
         if (!this.db_util.has('key_auto').value()) {
-            this.db_util.set('key_auto', "CommandOrControl+Alt+P").write()
+            this.db_util.set('key_auto', "CmdOrCtrl+Alt+P").write()
         }
 
         if (!this.db_util.has('errCodeChecked').value()) {
@@ -114,7 +114,19 @@ export default {
         }
 
         if (!this.db_util.has('display_shares_list').value()) {
-            this.db_util.set('display_shares_list', []).write()
+            this.db_util.set('display_shares_list', "").write()
+        }
+
+        if (!this.db_util.has('moyu_text').value()) {
+            this.db_util.set('moyu_text', "Hello").write()
+        }
+
+        if (!this.db_util.has('desktop_wh').value()) {
+            this.db_util.set('desktop_wh', "").write()
+        }
+
+        if (!this.db_util.has('desktop_wz').value()) {
+            this.db_util.set('desktop_wz', "").write()
         }
 
         let isMac = 'darwin' === process.platform;

@@ -14,7 +14,7 @@
         v-show="is_mouse_model=='1'"
       >{{text}}</div>
 
-      <div class="text" v-show="is_mouse_model=='0'">{{text}}</div>
+      <div :class="display_css" v-show="is_mouse_model=='0'">{{text}}</div>
     </div>
   </el-container>
 </template>
@@ -32,7 +32,8 @@ export default {
       color: "",
       text: "",
       font_size: "",
-      is_mouse_model: "0"
+      is_mouse_model: "0",
+      display_css: "text",
     };
   },
   created() {
@@ -52,6 +53,13 @@ export default {
         that.is_boss = false;
         that.text = remote.getGlobal("text").text;
       }
+
+      var display_model = db.get("display_model");
+      if (display_model == "1") {
+        that.display_css = "text";
+      } else if (display_model == "2") {
+        that.display_css = "text mar-top";
+      }
     });
   },
   methods: {
@@ -59,6 +67,7 @@ export default {
       var bg_color = db.get("bg_color");
       var txt_color = db.get("txt_color");
       var font_size = db.get("font_size");
+
       this.is_mouse_model = db.get("is_mouse");
       this.color =
         "background: " +
@@ -92,11 +101,14 @@ export default {
 .container {
   height: 100%;
 
+  .mar-top {
+    margin-top: 3px;
+  }
+
   .text {
     -webkit-app-region: drag;
     height: 100%;
     padding: 0px 10px;
-    margin-top: 3px;
   }
 
   .texts {

@@ -1,5 +1,5 @@
 'use strict';
-var request = require('request');
+var rp = require('request-promise');
 
 
 const url = 'http://hq.sinajs.cn/list=';
@@ -10,18 +10,29 @@ const headers = {
 
 export default {
     getData(code, callback) {
-        request({
-            url: url + code,
-            method: "GET",
-            encoding: null,
-            headers: headers
-        }, function (err, res, body) {
-            var arr = body.toString().split(",")
-            var today_price = parseFloat(arr[1]);
-            var curr_price = parseFloat(arr[3]);
-            var percentage = (curr_price - today_price) / today_price * 100
-            var text = curr_price.toFixed(2) + "," + percentage.toFixed(2) + "%";
-            callback(text)
-        })
+        var codeArr = code.split(",");
+
+        var textAll = "";
+
+        var promiseArr = codeArr.map(function (code) {
+            return rp(url + code);
+        });
+
+        Promise
+            .all(promiseArr)
+            .then(function (results) {
+                for (let index = 0; index < results.length; index++) {
+                    var arr = results[index].toString().split(",")
+                    var yesterday_price = parseFloat(arr[2]);
+                    var curr_price = parseFloat(arr[3]);
+                    var percentage = (curr_price - yesterday_price) / yesterday_price * 100
+                    var text = curr_price.toFixed(2) + "," + percentage.toFixed(2) + "%";
+                    textAll = textAll + text + "||";
+                }
+                textAll = textAll.substring(0, textAll.length - 2)
+                callback(textAll)
+            })
+            .catch(function (e) {
+            });
     }
 };

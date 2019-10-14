@@ -103,6 +103,7 @@ https://github.com/cteamx/Thief-Book/blob/master/images/mouse.gif
 
 - **乱码问题** 勾选乱码选择框即可
 
+- **WIN调整大小** 右键选大小，按一下键盘左右方向键调整大小
   
 
 # 快捷键
@@ -131,50 +132,9 @@ https://github.com/cteamx/Thief-Book/blob/master/images/mouse.gif
 
 > 快捷键可以包含多个功能键和一个键码的字符串，由符号+结合，用来定义你应用中的键盘快捷键
 
-### 示例：
-
-- CmdOrCtrl+A
-- CmdOrCtrl+Shift+Z
-
-> 在 Linux 和 Windows 上, Command 键没有任何效果, 所以使用 CommandOrControl表述, macOS 是 Command ，在 Linux 和 Windows 上是Control。
-> 使用 Alt 代替Option. Option 键只在 macOS 系统上存在, 而 Alt 键在任何系统上都有效.
-> Super键是指 Windows 和 Linux 系统上的 Windows 键，但在 macOS 里为 Cmd 键.
-
-### 可用的功能键
-
-- Command (缩写为Cmd)
-- Control (缩写为Ctrl)
-- CommandOrControl (缩写为 CmdOrCtrl)
-- Alt
-- Option
-- AltGr
-- Shift
-- Super
-
-### 可用的普通按键
-
-- 0 to 9
-- A to Z
-- F1 to F24
-- 类似~, !, @, #, $的标点符号
-- Plus
-- Space
-- Tab
-- 大写锁定（Capslock）
-- 数字锁定（Numlock）
-- Backspace
-- Delete
-- Insert
-- Return (等同于 Enter)
-- Up, Down, Left and Right
-- Home 和 End
-- PageUp 和 PageDown
-- Escape (缩写为 Esc)
-- VolumeUp, VolumeDown 和 VolumeMute
-- MediaNextTrack、MediaPreviousTrack、MediaStop 和 MediaPlayPause
-- PrintScreen
-
 ### 小键盘按键
+
+> 小键盘无法自动识别，需要手动填写
 
 - num1-num9 -数字1-数字9
 - numdec - 小数点

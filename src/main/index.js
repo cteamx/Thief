@@ -155,7 +155,6 @@ function createWindownSetting() {
   /**
    * Initial window options
    */
-
   settingWindow = new BrowserWindow({
     title: '设 置',
     useContentSize: true,
@@ -184,16 +183,38 @@ function createWindownDesktop() {
   /**
    * Initial window options
    */
+
+  var width = 856;
+  var height = 47;
+  var x = 356;
+  var y = 429;
+
+  var desktop_wh = db.get('desktop_wh');
+  var desktop_wz = db.get('desktop_wz');
+
+  var arr_wh = desktop_wh.split(",");
+  var arr_wz = desktop_wz.split(",");
+
+  if (arr_wh.length == 2) {
+    width = parseInt(arr_wh[0]);
+    height = parseInt(arr_wh[1]);
+  }
+
+  if (arr_wh.length == 2) {
+    x = parseInt(arr_wz[1]);
+    y = parseInt(arr_wz[0]);
+  }
+
   desktopWindow = new BrowserWindow({
     useContentSize: true,
-    width: 856,
-    height: 47,
+    width: width,
+    height: height,
     resizable: true,
     frame: false,
     transparent: true,
-    // maximizable: false
-    // y: 600,
-    // x: 300
+    hasShadow: false,
+    y: x,
+    x: y,
   })
 
   let webContents = desktopWindow.webContents;
@@ -213,6 +234,16 @@ function createWindownDesktop() {
 
   desktopWindow.on('closed', () => {
     desktopWindow = null
+  })
+
+  desktopWindow.on('resize', () => {
+    var size = desktopWindow.getSize();
+    db.set("desktop_wh", size[0].toString() + "," + size[1].toString());
+  })
+
+  desktopWindow.on('move', () => {
+    var position = desktopWindow.getPosition();
+    db.set("desktop_wz", position[0].toString() + "," + position[1].toString());
   })
 }
 
@@ -270,7 +301,7 @@ function MouseModel(e) {
     desktopWindow.reload();
 
     setTimeout(() => {
-      let text = osUtil.getTime();
+      let text = db.get('moyu_text');
       setText(text);
       desktopWindow.webContents.send('text', 'boss');
     }, 2000);
@@ -303,7 +334,7 @@ function AutoStock() {
     clearInterval(autoStockTime);
 
     autoStockTime = setInterval(function () {
-      stock.getData(display_shares_list[0], function (text) {
+      stock.getData(display_shares_list, function (text) {
         updateText(text);
       })
     }, parseInt(5) * 1000);
@@ -340,7 +371,7 @@ function NextPage() {
   let display_shares_list = db.get('display_shares_list');
 
   if (display_model === '2') {
-    stock.getData(display_shares_list[0], function (text) {
+    stock.getData(display_shares_list, function (text) {
       updateText(text);
     })
   } else {
@@ -354,7 +385,7 @@ function PreviousPage() {
   let display_shares_list = db.get('display_shares_list');
 
   if (display_model === '2') {
-    stock.getData(display_shares_list[0], function (text) {
+    stock.getData(display_shares_list, function (text) {
       updateText(text);
     })
   } else {
@@ -364,7 +395,7 @@ function PreviousPage() {
 }
 
 function BossKey(type) {
-  let text = osUtil.getTime();
+  let text = db.get('moyu_text');
   let curr_model = db.get('curr_model');
 
   if (curr_model === '1') {
@@ -643,7 +674,7 @@ function createTray() {
         db.set("display_model", "2");
         let display_shares_list = db.get('display_shares_list');
 
-        stock.getData(display_shares_list[0], function (text) {
+        stock.getData(display_shares_list, function (text) {
           updateText(text);
           AutoStock();
         })
@@ -663,7 +694,7 @@ function createTray() {
       label: '自动翻页',
       type: 'checkbox',
       accelerator: db.get('key_auto'),
-      checked: db.get('auto_page') === '0',
+      checked: db.get('auto_page') === '1',
       click() {
         AutoPage();
       }
@@ -794,13 +825,13 @@ if (shouldQuit) {
 app.on('ready', init)
 
 app.on('window-all-closed', () => {
-  db.set("auto_page", "1");
+  db.set("auto_page", "0");
   db.set("is_mouse", "0");
 
   if (isMac) {
     db.set("curr_model", "1")
-  } 
- 
+  }
+
   if (process.platform !== 'darwin') {
     app.quit()
   }

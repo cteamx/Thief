@@ -44,7 +44,6 @@
               size="mini"
               controls-position="right"
               :min="5"
-              :max="28"
               v-model="form.page_size"
             ></el-input-number>
 
@@ -53,7 +52,6 @@
               size="mini"
               controls-position="right"
               :min="5"
-              :max="100"
               v-model="form.page_size"
             ></el-input-number>
           </el-form-item>
@@ -114,11 +112,25 @@
           </el-form-item>
         </el-col>
 
-        <el-col :span="24">
+        <el-col :span="11">
           <el-form-item label="上一页">
+            <el-select style="width:138px;" v-model="keyPrevious" size="mini" placeholder="请选择">
+              <el-option label="Alt" value="Alt"></el-option>
+              <el-option label="CmdOrCtrl" value="CmdOrCtrl"></el-option>
+              <el-option label="CmdOrCtrl+Alt" value="CmdOrCtrl+Alt"></el-option>
+            </el-select>
+          </el-form-item>
+        </el-col>
+
+        <el-col style="text-align: center;margin-top: 10px; margin-left: 10px;" :span="2">
+          <span>+</span>
+        </el-col>
+
+        <el-col :span="10">
+          <el-form-item>
             <el-input
-              style="width:351px;"
-              v-model="form.key_previous"
+              style="width:179px;margin-left: -100px;"
+              v-model="keyPreviousX"
               maxlength="100"
               size="mini"
               placeholder="请输入按键"
@@ -129,11 +141,25 @@
           </el-form-item>
         </el-col>
 
-        <el-col :span="24">
+        <el-col :span="11">
           <el-form-item label="下一页">
+            <el-select style="width:138px;" v-model="keyNext" size="mini" placeholder="请选择">
+              <el-option label="Alt" value="Alt"></el-option>
+              <el-option label="CmdOrCtrl" value="CmdOrCtrl"></el-option>
+              <el-option label="CmdOrCtrl+Alt" value="CmdOrCtrl+Alt"></el-option>
+            </el-select>
+          </el-form-item>
+        </el-col>
+
+        <el-col style="text-align: center;margin-top: 10px; margin-left: 10px;" :span="2">
+          <span>+</span>
+        </el-col>
+
+        <el-col :span="10">
+          <el-form-item>
             <el-input
-              style="width:351px;"
-              v-model="form.key_next"
+              style="width:179px;margin-left: -100px;"
+              v-model="keyNextX"
               maxlength="100"
               size="mini"
               placeholder="请输入按键"
@@ -144,11 +170,25 @@
           </el-form-item>
         </el-col>
 
-        <el-col :span="24">
+        <el-col :span="11">
           <el-form-item label="老板键">
+            <el-select style="width:138px;" v-model="keyBoss" size="mini" placeholder="请选择">
+              <el-option label="Alt" value="Alt"></el-option>
+              <el-option label="CmdOrCtrl" value="CmdOrCtrl"></el-option>
+              <el-option label="CmdOrCtrl+Alt" value="CmdOrCtrl+Alt"></el-option>
+            </el-select>
+          </el-form-item>
+        </el-col>
+
+        <el-col style="text-align: center;margin-top: 10px; margin-left: 10px;" :span="2">
+          <span>+</span>
+        </el-col>
+
+        <el-col :span="10">
+          <el-form-item>
             <el-input
-              style="width:351px;"
-              v-model="form.key_boss"
+              style="width:179px;margin-left: -100px;"
+              v-model="keyBossX"
               maxlength="100"
               size="mini"
               placeholder="请输入按键"
@@ -159,11 +199,25 @@
           </el-form-item>
         </el-col>
 
-        <el-col :span="24">
+        <el-col :span="11">
           <el-form-item label="自动翻页">
+            <el-select style="width:138px;" v-model="keyAuto" size="mini" placeholder="请选择">
+              <el-option label="Alt" value="Alt"></el-option>
+              <el-option label="CmdOrCtrl" value="CmdOrCtrl"></el-option>
+              <el-option label="CmdOrCtrl+Alt" value="CmdOrCtrl+Alt"></el-option>
+            </el-select>
+          </el-form-item>
+        </el-col>
+
+        <el-col style="text-align: center;margin-top: 10px; margin-left: 10px;" :span="2">
+          <span>+</span>
+        </el-col>
+
+        <el-col :span="10">
+          <el-form-item>
             <el-input
-              style="width:351px;"
-              v-model="form.key_auto"
+              style="width:179px;margin-left: -100px;"
+              v-model="keyAutoX"
               maxlength="100"
               size="mini"
               placeholder="请输入按键"
@@ -190,10 +244,19 @@
             <el-input
               style="width:111px;"
               v-model="stock_code"
-              maxlength="10"
               size="mini"
               placeholder="请输入股票代码"
               prefix-icon="el-icon-sugar"
+            ></el-input>
+          </el-form-item>
+          <el-form-item label="摸鱼文字">
+            <el-input
+              style="width:111px;"
+              v-model="moyu_text"
+              maxlength="100"
+              size="mini"
+              placeholder="请输入摸鱼文字"
+              prefix-icon="el-icon-umbrella"
             ></el-input>
           </el-form-item>
           <!-- <el-form-item label="股票模式">
@@ -240,7 +303,16 @@ export default {
       is_display_page: true,
       is_display_joke: false,
       is_display_shares: false,
-      stock_code: ""
+      stock_code: "",
+      moyu_text: "",
+      keyPrevious: "CmdOrCtrl+Alt",
+      keyPreviousX: "",
+      keyNext: "CmdOrCtrl+Alt",
+      keyNextX: "",
+      keyBoss: "CmdOrCtrl+Alt",
+      keyBossX: "",
+      keyAuto: "CmdOrCtrl+Alt",
+      keyAutoX: ""
     };
   },
   created() {
@@ -262,46 +334,31 @@ export default {
       shell.openExternal("https://c.team");
     },
     onPreviousFocus() {
-      this.form.key_previous = "";
+      this.keyPreviousX = "";
       this.key_type = 1;
     },
     onNextFocus() {
-      this.form.key_next = "";
+      this.keyNextX = "";
       this.key_type = 2;
     },
     onBossFocus() {
-      this.form.key_boss = "";
+      this.keyBossX = "";
       this.key_type = 3;
     },
     onAutoFocus() {
-      this.form.key_auto = "";
+      this.keyAutoX = "";
       this.key_type = 4;
     },
     onPreviousBlur() {
-      if (this.form.key_previous.trim() === "") {
-        this.form.key_previous = db.get("key_previous");
-      }
       this.key_type = 0;
     },
     onNextBlur() {
-      if (this.form.key_next.trim() === "") {
-        this.form.key_next = db.get("key_next");
-      }
-
       this.key_type = 0;
     },
     onBossBlur() {
-      if (this.form.key_boss.trim() === "") {
-        this.form.key_boss = db.get("key_boss");
-      }
-
       this.key_type = 0;
     },
     onAutoBlur() {
-      if (this.form.key_auto.trim() === "") {
-        this.form.key_auto = db.get("key_auto");
-      }
-
       this.key_type = 0;
     },
     onKey() {
@@ -312,94 +369,46 @@ export default {
       };
 
       hotkeys("*", function(e) {
-        if (e.key != "Backspace") {
-          if (
-            e.key === "Control" ||
-            e.key === "Meta" ||
-            e.key === "Alt" ||
-            e.key === "Shift"
-          ) {
-            if (that.key_type == 1) {
-              var arr = that.form.key_previous.split("+");
-              if (arr.length > 1) {
-                var keyx = "";
-                if (e.key === "Meta" || e.key === "Control") {
-                  keyx = "CmdOrCtrl";
-                } else {
-                  keyx = e.key;
-                }
+        if (
+          e.key != "Control" &&
+          e.key != "Meta" &&
+          e.key != "Alt" &&
+          e.key != "Shift" &&
+          e.key != "Backspace" &&
+          e.key != "CapsLock" &&
+          e.key != "Enter" &&
+          e.key != "Tab" &&
+          e.key != "Escape" &&
+          e.key != "Numlock" &&
+          e.key != "F5"
+        ) {
+          var keyx = "";
 
-                if (arr.indexOf(keyx) <= -1) {
-                  that.form.key_previous = that.form.key_previous + keyx + "+";
-                }
-              } else {
-                if (e.key === "Meta" || e.key === "Control") {
-                  that.form.key_previous =
-                    that.form.key_previous + "CmdOrCtrl" + "+";
-                } else {
-                  that.form.key_previous = that.form.key_previous + e.key + "+";
-                }
-              }
-            } else if (that.key_type == 2) {
-              var arr = that.form.key_next.split("+");
-              if (arr.length > 1) {
-                var keyx = "";
-                if (e.key === "Meta" || e.key === "Control") {
-                  keyx = "CmdOrCtrl";
-                } else {
-                  keyx = e.key;
-                }
+          if (e.key === "ArrowLeft") {
+            keyx = "Left";
+          } else if (e.key === "ArrowUp") {
+            keyx = "Up";
+          } else if (e.key === "ArrowDown") {
+            keyx = "Down";
+          } else if (e.key === "ArrowRight") {
+            keyx = "Right";
+          }
 
-                if (arr.indexOf(keyx) <= -1) {
-                  that.form.key_next = that.form.key_next + keyx + "+";
-                }
-              } else {
-                if (e.key === "Meta" || e.key === "Control") {
-                  that.form.key_next = that.form.key_next + "CmdOrCtrl" + "+";
-                } else {
-                  that.form.key_next = that.form.key_next + e.key + "+";
-                }
-              }
-            } else if (that.key_type == 3) {
-              var arr = that.form.key_boss.split("+");
-              if (arr.length > 1) {
-                var keyx = "";
-                if (e.key === "Meta" || e.key === "Control") {
-                  keyx = "CmdOrCtrl";
-                } else {
-                  keyx = e.key;
-                }
-
-                if (arr.indexOf(keyx) <= -1) {
-                  that.form.key_boss = that.form.key_boss + keyx + "+";
-                }
-              } else {
-                if (e.key === "Meta" || e.key === "Control") {
-                  that.form.key_boss = that.form.key_boss + "CmdOrCtrl" + "+";
-                } else {
-                  that.form.key_boss = that.form.key_boss + e.key + "+";
-                }
-              }
-            } else if (that.key_type == 4) {
-              var arr = that.form.key_auto.split("+");
-              if (arr.length > 1) {
-                var keyx = "";
-                if (e.key === "Meta" || e.key === "Control") {
-                  keyx = "CmdOrCtrl";
-                } else {
-                  keyx = e.key;
-                }
-
-                if (arr.indexOf(keyx) <= -1) {
-                  that.form.key_auto = that.form.key_auto + keyx + "+";
-                }
-              } else {
-                if (e.key === "Meta" || e.key === "Control") {
-                  that.form.key_auto = that.form.key_auto + "CmdOrCtrl" + "+";
-                } else {
-                  that.form.key_auto = that.form.key_auto + e.key + "+";
-                }
-              }
+          if (that.key_type == 1) {
+            if (keyx != "") {
+              that.keyPreviousX = keyx;
+            }
+          } else if (that.key_type == 2) {
+            if (keyx != "") {
+              that.keyNextX = keyx;
+            }
+          } else if (that.key_type == 3) {
+            if (keyx != "") {
+              that.keyBossX = keyx;
+            }
+          } else if (that.key_type == 4) {
+            if (keyx != "") {
+              that.keyAutoX = keyx;
             }
           }
         }
@@ -417,16 +426,53 @@ export default {
       this.form.font_size = db.get("font_size");
       this.form.second = db.get("second");
 
-      this.form.key_previous = db.get("key_previous");
-      this.form.key_next = db.get("key_next");
-      this.form.key_boss = db.get("key_boss");
-      this.form.key_auto = db.get("key_auto");
+      var key_previous = db.get("key_previous");
+      var arr = key_previous.split("+");
+      if (arr.length === 2) {
+        this.keyPrevious = arr[0];
+        this.keyPreviousX = arr[1];
+      } else if (arr.length === 3) {
+        this.keyPrevious = arr[0] + "+" + arr[1];
+        this.keyPreviousX = arr[2];
+      }
+
+      var key_next = db.get("key_next");
+      var arr = key_next.split("+");
+      if (arr.length === 2) {
+        this.keyNext = arr[0];
+        this.keyNextX = arr[1];
+      } else if (arr.length === 3) {
+        this.keyNext = arr[0] + "+" + arr[1];
+        this.keyNextX = arr[2];
+      }
+
+      var key_boss = db.get("key_boss");
+      var arr = key_boss.split("+");
+      if (arr.length === 2) {
+        this.keyBoss = arr[0];
+        this.keyBossX = arr[1];
+      } else if (arr.length === 3) {
+        this.keyBoss = arr[0] + "+" + arr[1];
+        this.keyBossX = arr[2];
+      }
+
+      var key_auto = db.get("key_auto");
+      var arr = key_auto.split("+");
+      if (arr.length === 2) {
+        this.keyAuto = arr[0];
+        this.keyAutoX = arr[1];
+      } else if (arr.length === 3) {
+        this.keyAuto = arr[0] + "+" + arr[1];
+        this.keyAutoX = arr[2];
+      }
 
       this.lmchecked = db.get("errCodeChecked");
 
       this.is_display_page = db.get("is_display_page");
 
-      this.stock_code = db.get("display_shares_list")[0];
+      this.stock_code = db.get("display_shares_list");
+
+      this.moyu_text = db.get("moyu_text");
       // this.is_display_joke = db.get("is_display_joke");
       // this.is_display_shares = db.get("is_display_shares");
     },
@@ -447,10 +493,17 @@ export default {
       db.set("font_size", this.form.font_size);
       db.set("second", this.form.second);
 
-      db.set("key_previous", this.form.key_previous);
-      db.set("key_next", this.form.key_next);
-      db.set("key_boss", this.form.key_boss);
-      db.set("key_auto", this.form.key_auto);
+      var key_previous = this.keyPrevious + "+" + this.keyPreviousX;
+      db.set("key_previous", key_previous);
+
+      var key_next = this.keyNext + "+" + this.keyNextX;
+      db.set("key_next", key_next);
+
+      var key_boss = this.keyBoss + "+" + this.keyBossX;
+      db.set("key_boss", key_boss);
+
+      var key_auto = this.keyAuto + "+" + this.keyAutoX;
+      db.set("key_auto", key_auto);
 
       db.set("errCodeChecked", this.form.errCodeChecked);
 
@@ -458,7 +511,9 @@ export default {
       // db.set("is_display_joke", this.is_display_joke);
       // db.set("is_display_shares", this.is_display_shares);
 
-      db.set("display_shares_list", [this.stock_code]);
+      db.set("display_shares_list", this.stock_code);
+
+      db.set("moyu_text", this.moyu_text);
 
       ipcRenderer.send("bg_text_color", "ping");
 
@@ -490,10 +545,11 @@ export default {
         letter-spacing: 6px;
         margin-left: 0px;
         background: #585858;
-        padding: 20px 80px 15px 80px;
+        padding: 7px 80px 7px 80px;
         margin-top: -7px;
         color: #ffffff;
         border-radius: 8px;
+        font-size: 12px;
       }
     }
 
@@ -542,5 +598,9 @@ export default {
 
 .el-checkbox.is-bordered.is-checked {
   border: 0px;
+}
+
+.el-form-item__content {
+  margin-left: 0px;
 }
 </style>
