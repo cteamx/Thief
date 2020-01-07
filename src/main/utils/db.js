@@ -129,6 +129,10 @@ export default {
             this.db_util.set('desktop_wz', "").write()
         }
 
+        if (!this.db_util.has('is_ad').value()) {
+            this.db_util.set('is_ad', 0).write()
+        }
+
         let isMac = 'darwin' === process.platform;
         if (!this.db_util.has('curr_model').value()) {
             if (isMac) {

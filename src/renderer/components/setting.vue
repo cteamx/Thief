@@ -383,7 +383,6 @@ export default {
           e.key != "F5"
         ) {
           var keyx = "";
-
           if (e.key === "ArrowLeft") {
             keyx = "Left";
           } else if (e.key === "ArrowUp") {
@@ -392,6 +391,8 @@ export default {
             keyx = "Down";
           } else if (e.key === "ArrowRight") {
             keyx = "Right";
+          }else if (e.key.trim() === "") {
+            keyx = "不能为空格,请删掉重新输入";
           }
 
           if (that.key_type == 1) {

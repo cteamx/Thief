@@ -7,12 +7,14 @@ export default {
         remote.dialog.showOpenDialog({
             title: '请选择要打开的文件',
             filters: [
-                { name: 'Markdown', extensions: ['txt'] },
+                { name: 'TXT', extensions: ['txt'] },
                 { name: 'All Files', extensions: ['*'] }
             ],
             properties: ['openFile', 'showHiddenFiles']
-        }, (filePaths) => {
-            callback(filePaths)
-        })
+          }).then(result => {
+            callback(result.filePaths)
+          }).catch(err => {
+            console.log(err)
+          })
     }
 };
