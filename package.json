@@ -1,0 +1,115 @@
+{
+  "name": "thief",
+  "version": "4.0.0",
+  "author": "SanJin <lauixData@gamil.com>",
+  "description": "一款真正的创新摸鱼神器",
+  "license": "MIT",
+  "main": "./dist/electron/main.js",
+  "scripts": {
+    "build": "node .electron-vue/build.js && electron-builder",
+    "build:win64": "node .electron-vue/build.js && electron-builder --win --x64",
+    "build:win32": "node .electron-vue/build.js && electron-builder --win --ia32",
+    "build:linux64": "node .electron-vue/build.js && electron-builder --linux --x64",
+    "build:linux32": "node .electron-vue/build.js && electron-builder --linux --ia32",
+    "build:mac": "node .electron-vue/build.js && electron-builder --mac --x64",
+    "build:all": "node .electron-vue/build.js && electron-builder --platform=all",
+    "build:dir": "node .electron-vue/build.js && electron-builder --dir",
+    "build:clean": "cross-env BUILD_TARGET=clean node .electron-vue/build.js",
+    "build:web": "cross-env BUILD_TARGET=web node .electron-vue/build.js",
+    "dev": "node .electron-vue/dev-runner.js",
+    "pack": "npm run pack:main && npm run pack:renderer",
+    "pack:main": "cross-env NODE_ENV=production webpack --progress --colors --config .electron-vue/webpack.main.config.js",
+    "pack:renderer": "cross-env NODE_ENV=production webpack --progress --colors --config .electron-vue/webpack.renderer.config.js",
+    "postinstall": ""
+  },
+  "build": {
+    "productName": "thief",
+    "appId": "c.team.thief",
+    "directories": {
+      "output": "build"
+    },
+    "files": [
+      "dist/electron/**/*"
+    ],
+    "dmg": {
+      "contents": [
+        {
+          "x": 410,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 130,
+          "y": 150,
+          "type": "file"
+        }
+      ]
+    },
+    "mac": {
+      "icon": "build/icons/icon.icns"
+    },
+    "win": {
+      "icon": "build/icons/icon.ico"
+    },
+    "linux": {
+      "icon": "build/icons"
+    }
+  },
+  "dependencies": {
+    "axios": "^0.18.0",
+    "element-ui": "^2.9.1",
+    "fs-extra": "^8.0.1",
+    "hotkeys-js": "^3.7.6",
+    "iconv-lite": "^0.5.0",
+    "lodash-id": "^0.14.0",
+    "lowdb": "^1.0.0",
+    "pdfjs-dist": "^2.3.200",
+    "request": "^2.88.0",
+    "request-promise": "^4.2.4",
+    "vue": "^2.5.16",
+    "vue-electron": "^1.0.6",
+    "vue-router": "^3.0.1",
+    "vuex": "^3.0.1",
+    "vuex-electron": "^1.0.0"
+  },
+  "devDependencies": {
+    "ajv": "^6.5.0",
+    "babel-core": "^6.26.3",
+    "babel-loader": "^7.1.4",
+    "babel-plugin-transform-runtime": "^6.23.0",
+    "babel-preset-env": "^1.7.0",
+    "babel-preset-stage-0": "^6.24.1",
+    "babel-register": "^6.26.0",
+    "babili-webpack-plugin": "^0.1.2",
+    "cfonts": "^2.1.2",
+    "chalk": "^2.4.1",
+    "copy-webpack-plugin": "^4.5.1",
+    "cross-env": "^5.1.6",
+    "css-loader": "^0.28.11",
+    "del": "^3.0.0",
+    "devtron": "^1.4.0",
+    "electron": "^8.2.3",
+    "electron-builder": "^21.2.0",
+    "electron-debug": "^1.5.0",
+    "electron-devtools-installer": "^2.2.4",
+    "file-loader": "^1.1.11",
+    "html-webpack-plugin": "^3.2.0",
+    "mini-css-extract-plugin": "0.4.0",
+    "multispinner": "^0.2.1",
+    "node-loader": "^0.6.0",
+    "node-sass": "^4.9.2",
+    "sass-loader": "^7.0.3",
+    "style-loader": "^0.21.0",
+    "url-loader": "^1.0.1",
+    "vue-html-loader": "^1.2.4",
+    "vue-loader": "^15.2.4",
+    "vue-style-loader": "^4.1.0",
+    "vue-template-compiler": "^2.5.16",
+    "webpack": "^4.15.1",
+    "webpack-cli": "^3.0.8",
+    "webpack-dev-server": "^3.1.4",
+    "webpack-hot-middleware": "^2.22.2",
+    "webpack-merge": "^4.1.3"
+  }
+}
