@@ -555,8 +555,8 @@ export default {
     }
 
     .sizex {
-      font-size: 12px;
-      line-height: 44px;
+      font-size: 18px;
+      line-height: 35px;
       font-weight: bold;
     }
 

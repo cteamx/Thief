@@ -638,7 +638,7 @@ function BossKey(type) {
         }
     }
 
-        if (pdfWindow != null) {
+    if (pdfWindow != null) {
         {
             if (pdfWindow.isVisible()) {
                 pdfWindow.hide();
@@ -648,7 +648,7 @@ function BossKey(type) {
         }
     }
 
-        if (videoWindow != null) {
+    if (videoWindow != null) {
         {
             if (videoWindow.isVisible()) {
                 videoWindow.hide();
@@ -665,15 +665,19 @@ function checkUpdate() {
         url: "https://gitee.com/lauix/public_version/raw/master/version.txt",
         method: "GET"
     }, function(err, res, body) {
+        const logo = `${__static}/icon.png`;
+        const image = nativeImage.createFromPath(logo)
+
         var newVersion = parseFloat(body);
 
-        var currVersion = 3.2
+        var currVersion = 4.0
         if (newVersion > currVersion) {
             const options = {
                 type: 'info',
                 title: '检查更新',
                 message: "发现新版本，是否更新？",
-                buttons: ['是', '否']
+                buttons: ['是', '否'],
+                icon: image
             }
             dialog.showMessageBox(options, function(index) {
                 if (index == 0) {
@@ -685,7 +689,8 @@ function checkUpdate() {
                 type: 'info',
                 title: '检查更新',
                 message: "当前为最新版本",
-                buttons: ['确认']
+                buttons: ['确认'],
+                icon: image
             }
             dialog.showMessageBox(options)
         }
@@ -760,15 +765,19 @@ function createKey() {
             AutoPage();
         })
     } catch (error) {
+        const logo = `${__static}/icon.png`;
+        const image = nativeImage.createFromPath(logo)
+
         const options = {
             type: 'info',
             title: '快捷键异常',
             message: "设置快捷键错误，请看文档异常汇总！",
-            buttons: ['打开文档', '否']
+            buttons: ['打开文档', '否'],
+            icon: image
         }
         dialog.showMessageBox(options, function(index) {
             if (index == 0) {
-                shell.openExternal('https://github.com/cteamx/Thief/blob/master/README.md')
+                shell.openExternal('https://thief.im/#/use?id=%e5%bc%82%e5%b8%b8%e6%b1%87%e6%80%bb')
             }
         })
 
@@ -787,7 +796,17 @@ function createTray() {
     menuList.push({
         label: '关于',
         click() {
-            shell.openExternal('https://github.com/cteamx/Thief')
+            const logo = `${__static}/icon.png`;
+            const image = nativeImage.createFromPath(logo)
+
+            const options = {
+                type: 'info',
+                title: '关于',
+                message: "Thief 是一款真正的创新摸鱼神器\n\n版本：4.0\n\n作者：三斤\n\n邮箱：lauixData@gmail.com",
+                buttons: ['确认'],
+                icon: image
+            }
+            dialog.showMessageBox(options)
         }
     }, {
         label: 'Thief官网',
