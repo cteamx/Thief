@@ -21,12 +21,7 @@
 <a href="https://github.com/cteamx/Thief/releases" target="_bank"> 网盘下载</a>
 </p>
 
-<p align="center">
-<img src="images/x.gif">
-</p>
-
 ## 什么是 Thief
-
 
 > 免责声明：本产品禁止用于非法用途，一切违法行为与作者无关。
 
