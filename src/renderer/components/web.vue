@@ -2,9 +2,16 @@
   <el-container class="container">
     <div class="divx"></div>
     <div class="setting" v-if="is_setting">
-      <el-input v-model="input" placeholder="请输入URL" clearable size="mini" @keyup.enter.native="onSo"></el-input>
+      <el-input
+        v-model="input"
+        placeholder="请输入URL"
+        clearable
+        size="mini"
+        @keyup.enter.native="onSo"
+      ></el-input>
     </div>
     <webview
+      v-if="url"
       class="ifr"
       :src="url"
       :plugins="true"
@@ -21,7 +28,7 @@ export default {
   name: "web",
   data() {
     return {
-      url: "",
+      url: null,
       is_setting: true,
       input: ""
     };

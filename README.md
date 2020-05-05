@@ -18,7 +18,7 @@
 <span>|</span>
 <a href="https://github.com/cteamx/Thief/releases" target="_bank">下载</a>
 <span>|</span>
-<a href="https://github.com/cteamx/Thief/releases" target="_bank"> 网盘下载</a>
+<a href="https://thief.im/download.html" target="_bank"> 网盘下载</a>
 </p>
 
 ## 什么是 Thief

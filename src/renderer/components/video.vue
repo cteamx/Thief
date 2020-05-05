@@ -6,7 +6,7 @@
         <el-button slot="append" icon="el-icon-folder-opened" @click="onSelect"></el-button>
       </el-input>
     </div>
-    <div class="videox">
+    <div class="videox" v-if="url">
       <video :src="url" controls autoplay class="video_src" width="100%"></video>
     </div>
   </el-container>
@@ -22,7 +22,7 @@ export default {
   name: "video",
   data() {
     return {
-      url: "",
+      url: null,
       is_setting: true,
       input: ""
     };

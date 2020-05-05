@@ -112,6 +112,8 @@ const pdfURL = process.env.NODE_ENV === 'development' ?
     `file://${__dirname}/index.html#pdf`
 
 function init() {
+    Menu.setApplicationMenu(null);
+
     db.set("auto_page", "0");
     db.set("is_mouse", "0");
 
@@ -143,6 +145,10 @@ function createVideo() {
     /**
      * Initial window options
      */
+    var frame = true;
+    if (isMac) {
+        frame = false;
+    }
 
     videoWindow = new BrowserWindow({
         useContentSize: true,
@@ -152,10 +158,9 @@ function createVideo() {
         minimizable: false,
         transparent: true,
         resizable: true,
-        frame: false,
+        frame: frame,
         webPreferences: {
-            nodeIntegration: true,
-            webviewTag: true
+            nodeIntegration: true
         },
     })
 
@@ -183,6 +188,11 @@ function createPdf() {
      * Initial window options
      */
 
+    var frame = true;
+    if (isMac) {
+        frame = false;
+    }
+
     pdfWindow = new BrowserWindow({
         useContentSize: true,
         width: 478,
@@ -191,10 +201,9 @@ function createPdf() {
         minimizable: false,
         transparent: true,
         resizable: true,
-        frame: false,
+        frame: frame,
         webPreferences: {
-            nodeIntegration: true,
-            webviewTag: true
+            nodeIntegration: true
         },
     })
 
@@ -222,6 +231,11 @@ function createWeb() {
      * Initial window options
      */
 
+    var frame = true;
+    if (isMac) {
+        frame = false;
+    }
+
     webWindow = new BrowserWindow({
         useContentSize: true,
         width: 478,
@@ -230,7 +244,7 @@ function createWeb() {
         minimizable: false,
         transparent: true,
         resizable: true,
-        frame: false,
+        frame: frame,
         webPreferences: {
             nodeIntegration: true,
             webviewTag: true
@@ -790,7 +804,7 @@ function createKey() {
 }
 
 function createTray() {
-    const menubarLogo = process.platform === 'darwin' ? `${__static}/logo.png` : `${__static}/logo.png`
+    const menubarLogo = process.platform === 'darwin' ? `${__static}/mac.png` : `${__static}/win.png`
 
     var menuList = [];
     menuList.push({
@@ -932,7 +946,6 @@ function createTray() {
             if (webWindow === "null" || webWindow === "undefined" || typeof(webWindow) === "undefined") {
                 createWeb();
             } else {
-
                 try {
                     webWindow.show();
                 } catch (error) {
@@ -946,7 +959,6 @@ function createTray() {
             if (videoWindow === "null" || videoWindow === "undefined" || typeof(videoWindow) === "undefined") {
                 createVideo();
             } else {
-
                 try {
                     videoWindow.show();
                 } catch (error) {
@@ -960,7 +972,6 @@ function createTray() {
             if (pdfWindow === "null" || pdfWindow === "undefined" || typeof(pdfWindow) === "undefined") {
                 createPdf();
             } else {
-
                 try {
                     pdfWindow.show();
                 } catch (error) {
@@ -1115,7 +1126,7 @@ ipcMain.on('webOpacity', function(e, v) {
         } else if (v === "change") {
             if (webWindow != null) {
                 var x = webWindow.getSize();
-                if (x[1] <= 30) {
+                if (x[1] <= 100) {
                     webWindow.setSize(715, 500);
                     webWindow.center();
                 }
@@ -1149,7 +1160,7 @@ ipcMain.on('pdfOpacity', function(e, v) {
         } else if (v === "change") {
             if (pdfWindow != null) {
                 var x = pdfWindow.getSize();
-                if (x[1] <= 30) {
+                if (x[1] <= 100) {
                     pdfWindow.setSize(715, 500);
                     pdfWindow.center();
                 }
@@ -1183,7 +1194,7 @@ ipcMain.on('videoOpacity', function(e, v) {
         } else if (v === "change") {
             if (videoWindow != null) {
                 var x = videoWindow.getSize();
-                if (x[1] <= 30) {
+                if (x[1] <= 100) {
                     videoWindow.setSize(715, 500);
                     videoWindow.center();
                 }
