@@ -13,7 +13,9 @@ export default {
             start: 0,
             end: this.page_size,
             filePath: "",
-            errCode: false
+            oldFilePath: "",
+            errCode: false,
+            fileCache: "",
         };
     },
     getSize(text) {
@@ -57,21 +59,25 @@ export default {
             return "请选择TXT小说路径"
         }
 
-        try {
-            var data = fs.readFileSync(this.filePath);
+        if (this.filePath !== this.oldFilePath) {
+            try {
+                var data = fs.readFileSync(this.filePath);
 
-            if (this.errCode) {
-                data = iconv.decode(data, 'gb2312');
-            } else {
-                data = iconv.decode(data, 'utf-8');
+                if (this.errCode) {
+                    data = iconv.decode(data, 'gb2312');
+                } else {
+                    data = iconv.decode(data, 'utf-8');
+                }
+                this.oldFilePath = this.filePath
+                var line_break = db.get("line_break");
+                data = data.toString().replace(/\n/g, line_break).replace(/\r/g, " ").replace(/　　/g, " ").replace(/ /g, " ");
+                this.fileCache = data
+            } catch (error) {
+                return "TXT小说路径不存在或路径不正确"
             }
-        } catch (error) {
-            return "TXT小说路径不存在或路径不正确"
         }
 
-        var line_break = db.get("line_break");
-
-        return data.toString().replace(/\n/g, line_break).replace(/\r/g, " ").replace(/　　/g, " ").replace(/ /g, " ");
+        return this.fileCache
     },
     init() {
         this.filePath = db.get("current_file_path");
