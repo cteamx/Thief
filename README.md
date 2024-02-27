@@ -7,20 +7,6 @@
 <h1 align="center">Thief </h1>
 <p align="center">一款真正的创新摸鱼神器</p>
 
-<p  align="center">
-<a href="https://thief.im/" target="_bank">官网</a>
-<span>|</span>
-<a href="https://thief.im/docs" target="_bank">使用文档</a>
-<span>|</span>
-<a href="https://github.com/cteamx/Thief" target="_bank">Github</a>
-<span>|</span>
-<a href="https://gitee.com/cteamx/Thief" target="_bank"> 码云</a>
-<span>|</span>
-<a href="https://github.com/cteamx/Thief/releases" target="_bank">下载</a>
-<span>|</span>
-<a href="https://thief.im/download.html" target="_bank"> 网盘下载</a>
-</p>
-
 ## 什么是 Thief
 
 > 免责声明：本产品禁止用于非法用途，一切违法行为与作者无关。
@@ -46,28 +32,10 @@
 - 其他摸鱼模式无区别
 
 
-## 关于团队
-
-
-> 目前只有我一个人
-
-
-**Team:** C.TEAM
-
-
-**官网：** https://c.team
-
-
-**我们一心打造创意、创新、好玩的产品**
-
-
-**祝大家摸鱼愉快, C.TEAM 会创造更多好玩的产品出来。**
-
-
 ## 联系我
 
 
-**E-mail:** **lauixData#gmail.com**
+**E-mail:** **sanjinhub#gmail.com**
 
 
 ## 开源贡献
