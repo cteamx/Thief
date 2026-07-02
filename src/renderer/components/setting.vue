@@ -287,7 +287,8 @@ export default {
         count: 0,
         updateTime: '',
         isInitialized: false
-      }
+      },
+      savedConfigSnapshot: null
     };
   },
   created() {
@@ -296,16 +297,25 @@ export default {
     } catch (error) {
       console.error("setting onLoad failed:", error);
     }
+  },
+  mounted() {
     try {
       this.onKey();
     } catch (error) {
       console.error("setting onKey failed:", error);
     }
-    try {
-      this.loadStockCacheInfo();
-    } catch (error) {
-      console.error("setting loadStockCacheInfo failed:", error);
-    }
+    this.$nextTick(() => {
+      setTimeout(() => {
+        try {
+          this.loadStockCacheInfo();
+        } catch (error) {
+          console.error("setting loadStockCacheInfo failed:", error);
+        }
+      }, 0);
+    });
+  },
+  beforeDestroy() {
+    hotkeys.unbind("*");
   },
   methods: {
     parseHotkey(value) {
@@ -504,6 +514,59 @@ export default {
         }
       });
     },
+    buildStockList() {
+      return Array.isArray(this.stock_code)
+        ? this.stock_code
+          .filter(stock => stock && stock.code && stock.code.trim())
+          .map(stock => ({
+            code: stock.code.trim(),
+            name: stock.name || "",
+            cost: stock.cost || "",
+            shares: stock.shares || "",
+            buyDate: stock.buyDate || ""
+          }))
+        : [];
+    },
+    buildConfigData() {
+      return {
+        current_page: this.form.curr_page,
+        page_size: this.form.page_size,
+        is_english: this.form.is_english,
+        line_break: this.form.line_break,
+        current_file_path: this.form.file_path,
+        bg_color: this.form.bg_color,
+        txt_color: this.form.txt_color,
+        font_size: this.form.font_size,
+        second: this.form.second,
+        key_previous: this.keyPrevious + "+" + this.keyPreviousX,
+        key_next: this.keyNext + "+" + this.keyNextX,
+        key_boss: this.keyBoss + "+" + this.keyBossX,
+        key_auto: this.keyAuto + "+" + this.keyAutoX,
+        errCodeChecked: this.form.errCodeChecked,
+        is_display_page: this.is_display_page,
+        is_display_buy1_amount: this.is_display_buy1_amount,
+        is_display_stock_item_data: this.is_display_stock_item_data,
+        is_display_stock_today_profit: this.is_display_stock_today_profit,
+        is_display_stock_holding_profit: this.is_display_stock_holding_profit,
+        is_display_stock_profit_label: this.is_display_stock_profit_label,
+        stock_profit_separator: this.stock_profit_separator || "/",
+        is_display_stock_total_today_profit: this.is_display_stock_total_today_profit,
+        is_display_stock_total_holding_profit: this.is_display_stock_total_holding_profit,
+        stock_color_mode: this.stock_color_mode || "red_up_green_down",
+        display_shares_list: this.buildStockList(),
+        moyu_text: this.moyu_text,
+        limit_up_alert_enabled: this.limit_up_alert_enabled,
+        dingtalk_webhook: this.dingtalk_webhook,
+        at_phone_numbers: this.at_phone_numbers
+      };
+    },
+    cloneConfigSnapshot(configData) {
+      return JSON.parse(JSON.stringify(configData));
+    },
+    hasConfigChanged(keys, nextConfig) {
+      const previousConfig = this.savedConfigSnapshot || {};
+      return keys.some(key => JSON.stringify(previousConfig[key]) !== JSON.stringify(nextConfig[key]));
+    },
     onLoad() {
       this.form.curr_page = db.get("current_page");
       this.form.page_size = db.get("page_size");
@@ -562,6 +625,7 @@ export default {
       this.limit_up_alert_enabled = db.get("limit_up_alert_enabled") || false;
       this.dingtalk_webhook = db.get("dingtalk_webhook") || "";
       this.at_phone_numbers = db.get("at_phone_numbers") || [];
+      this.savedConfigSnapshot = this.cloneConfigSnapshot(this.buildConfigData());
     },
     openTxt() {
       var that = this;
@@ -570,128 +634,42 @@ export default {
       });
     },
     onSubmit() {
-      console.log('开始保存配置...');
-      console.log('当前股票代码原始数据:', JSON.stringify(this.stock_code));
-      console.log('股票代码数据类型:', typeof this.stock_code);
-      console.log('股票代码是否为数组:', Array.isArray(this.stock_code));
-      
-      // 确保股票代码数据格式正确
-      const stockList = Array.isArray(this.stock_code) 
-        ? this.stock_code
-          .filter(stock => stock && stock.code && stock.code.trim())
-          .map(stock => ({
-            code: stock.code.trim(),
-            name: stock.name || "",
-            cost: stock.cost || "",
-            shares: stock.shares || "",
-            buyDate: stock.buyDate || ""
-          }))
-        : [];
-      
-      console.log('清理后的股票代码:', JSON.stringify(stockList));
-      
-      // 准备所有配置数据
-      const configData = {
-        "current_page": this.form.curr_page,
-        "page_size": this.form.page_size,
-        "is_english": this.form.is_english,
-        "line_break": this.form.line_break,
-        "current_file_path": this.form.file_path,
-        "bg_color": this.form.bg_color,
-        "txt_color": this.form.txt_color,
-        "font_size": this.form.font_size,
-        "second": this.form.second,
-        "key_previous": this.keyPrevious + "+" + this.keyPreviousX,
-        "key_next": this.keyNext + "+" + this.keyNextX,
-        "key_boss": this.keyBoss + "+" + this.keyBossX,
-        "key_auto": this.keyAuto + "+" + this.keyAutoX,
-        "errCodeChecked": this.form.errCodeChecked,
-        "is_display_page": this.is_display_page,
-        "is_display_buy1_amount": this.is_display_buy1_amount,
-        "is_display_stock_item_data": this.is_display_stock_item_data,
-        "is_display_stock_today_profit": this.is_display_stock_today_profit,
-        "is_display_stock_holding_profit": this.is_display_stock_holding_profit,
-        "is_display_stock_profit_label": this.is_display_stock_profit_label,
-        "stock_profit_separator": this.stock_profit_separator || "/",
-        "is_display_stock_total_today_profit": this.is_display_stock_total_today_profit,
-        "is_display_stock_total_holding_profit": this.is_display_stock_total_holding_profit,
-        "stock_color_mode": this.stock_color_mode || "red_up_green_down",
-        "display_shares_list": stockList, // 使用清理后的股票数据
-        "moyu_text": this.moyu_text,
-        "limit_up_alert_enabled": this.limit_up_alert_enabled,
-        "dingtalk_webhook": this.dingtalk_webhook,
-        "at_phone_numbers": this.at_phone_numbers
-      };
-      
-      console.log('即将保存的配置数据 display_shares_list:', JSON.stringify(configData.display_shares_list));
-      
-      // 使用批量保存
-      const batchSuccess = db.setBatch(configData);
-      
-      if (!batchSuccess) {
-        // 如果批量保存失败，使用逐个保存的方式
-        console.warn('批量保存失败，尝试逐个保存');
-        
-        Object.entries(configData).forEach(([key, value]) => {
-          const success = db.set(key, value);
-          if (!success) {
-            console.error(`保存配置项 ${key} 失败`);
-          }
+      const configData = this.buildConfigData();
+      const shortcutChanged = this.hasConfigChanged(
+        ["key_previous", "key_next", "key_boss", "key_auto"],
+        configData
+      );
+      const stockMonitorChanged = this.hasConfigChanged(
+        ["display_shares_list", "limit_up_alert_enabled", "dingtalk_webhook", "at_phone_numbers"],
+        configData
+      );
+
+      if (!db.setBatch(configData)) {
+        this.$message({
+          message: "\u4fdd\u5b58\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5",
+          type: "error",
+          showClose: true
         });
+        return;
       }
-      
-      // 立即通知主进程更新股票监控（不等待验证）
-      ipcRenderer.send("update_stock_monitor", this.limit_up_alert_enabled);
-      
-      // 更新UI
-      console.log('准备发送bg_text_color事件，当前颜色配置:');
-      console.log('背景色:', this.form.bg_color);
-      console.log('文字颜色:', this.form.txt_color);
-      
+
+      this.savedConfigSnapshot = this.cloneConfigSnapshot(configData);
+
+      if (shortcutChanged) {
+        ipcRenderer.send("reload_shortcuts_and_tray");
+      }
+
+      if (stockMonitorChanged) {
+        ipcRenderer.send("update_stock_monitor", configData.limit_up_alert_enabled);
+      }
+
       ipcRenderer.send("bg_text_color", "ping");
 
-      // 验证配置保存
-      setTimeout(() => {
-        const configSaved = this.checkConfigSaved();
-        if (configSaved) {
-          console.log('配置保存成功并已验证');
-          
-          this.$message({
-            message: "保存成功，请尽情的摸鱼吧！",
-            type: "success",
-            showClose: true
-          });
-        } else {
-          console.error('配置保存失败或不一致');
-          
-          // 尝试强制重新保存
-          db.set("display_shares_list", this.stock_code);
-          
-          // 再次通知主进程更新股票监控
-          setTimeout(() => {
-            ipcRenderer.send("update_stock_monitor", this.limit_up_alert_enabled);
-            ipcRenderer.send("refresh_current_display");
-            
-            // 再次验证
-            const retrySuccess = this.checkConfigSaved();
-            if (retrySuccess) {
-              console.log('重试保存成功');
-              this.$message({
-                message: "配置已成功保存",
-                type: "success",
-                showClose: true
-              });
-            } else {
-              console.error('重试保存仍然失败');
-              this.$message({
-                message: "配置保存可能有问题，请重新设置",
-                type: "warning",
-                showClose: true
-              });
-            }
-          }, 300);
-        }
-      }, 200);
+      this.$message({
+        message: "\u4fdd\u5b58\u6210\u529f",
+        type: "success",
+        showClose: true
+      });
     },
     async onStockSearch(queryString, cb) {
       try {

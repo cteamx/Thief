@@ -11,9 +11,157 @@ const headers = {
 
 // 东方财富API地址
 const EASTMONEY_API_URL = 'http://80.push2.eastmoney.com/api/qt/clist/get';
+const MIN_EXPECTED_A_SHARE_COUNT = 5000;
+const EASTMONEY_PAGE_SIZE = 2000;
+const SINA_PAGE_SIZE = 2000;
 
 const stockUtils = {
     stockCache: {},
+    normalizeStockCode(code) {
+        const normalized = String(code || '')
+            .trim()
+            .replace(/^(sh|sz|bj)/i, '');
+        return /^\d{6}$/.test(normalized) ? normalized : '';
+    },
+
+    inferExchangeFromCode(code, fullCode, exchange) {
+        const normalizedExchange = String(exchange || '').trim().toUpperCase();
+        if (normalizedExchange) {
+            return normalizedExchange;
+        }
+
+        const normalizedFullCode = String(fullCode || '').trim();
+        if (normalizedFullCode.includes('.')) {
+            const suffix = normalizedFullCode.split('.').pop().trim().toUpperCase();
+            if (suffix) {
+                return suffix;
+            }
+        }
+
+        if (/^bj/i.test(normalizedFullCode)) {
+            return 'BJ';
+        }
+        if (/^sh/i.test(normalizedFullCode)) {
+            return 'SH';
+        }
+        if (/^sz/i.test(normalizedFullCode)) {
+            return 'SZ';
+        }
+        if (code.startsWith('6')) {
+            return 'SH';
+        }
+        if (code.startsWith('4') || code.startsWith('8')) {
+            return 'BJ';
+        }
+        return 'SZ';
+    },
+
+    insertStockCacheEntry(cache, stockInfo) {
+        if (!cache || !stockInfo) {
+            return false;
+        }
+
+        const code = this.normalizeStockCode(stockInfo.code);
+        const name = String(stockInfo.name || '').trim();
+        if (!code || !name) {
+            return false;
+        }
+
+        const fullCode = String(stockInfo.fullCode || code).trim() || code;
+        const normalizedStock = {
+            code,
+            name,
+            fullCode,
+            exchange: this.inferExchangeFromCode(code, fullCode, stockInfo.exchange)
+        };
+
+        cache[code] = normalizedStock;
+        cache[name] = normalizedStock;
+        return true;
+    },
+
+    setStockCacheEntry(stockInfo) {
+        return this.insertStockCacheEntry(this.stockCache, stockInfo);
+    },
+
+    normalizeStockCache(cache) {
+        const normalizedCache = {};
+        if (!cache || typeof cache !== 'object') {
+            return normalizedCache;
+        }
+
+        Object.entries(cache).forEach(([key, value]) => {
+            if (value && typeof value === 'object' && value.code && value.name) {
+                this.insertStockCacheEntry(normalizedCache, value);
+                return;
+            }
+
+            if (typeof value === 'string') {
+                this.insertStockCacheEntry(normalizedCache, {
+                    code: key,
+                    name: value
+                });
+            }
+        });
+
+        return normalizedCache;
+    },
+
+    getUniqueStockCount() {
+        const codes = new Set();
+
+        Object.values(this.stockCache).forEach(stockInfo => {
+            if (stockInfo && typeof stockInfo === 'object' && stockInfo.code) {
+                const code = this.normalizeStockCode(stockInfo.code);
+                if (code) {
+                    codes.add(code);
+                }
+            }
+        });
+
+        if (codes.size > 0) {
+            return codes.size;
+        }
+
+        Object.entries(this.stockCache).forEach(([key, value]) => {
+            if (typeof value === 'string') {
+                const code = this.normalizeStockCode(key);
+                if (code) {
+                    codes.add(code);
+                }
+            }
+        });
+
+        return codes.size;
+    },
+
+    parseJsonResponse(response) {
+        if (!response) {
+            return null;
+        }
+
+        if (response.body && typeof response.body === 'object') {
+            return response.body;
+        }
+
+        if (typeof response.body === 'string' && response.body.trim()) {
+            try {
+                return JSON.parse(response.body);
+            } catch (error) {
+                return null;
+            }
+        }
+
+        if (typeof response.text === 'string' && response.text.trim()) {
+            try {
+                return JSON.parse(response.text);
+            } catch (error) {
+                return null;
+            }
+        }
+
+        return null;
+    },
     isStockCacheInitialized: false, // 添加标志位
 
     // 从本地存储加载股票缓存
@@ -21,8 +169,9 @@ const stockUtils = {
         try {
             const db = require('./db').default;
             const storedCache = await db.get('stock_code_mapping');
-            if (storedCache && Object.keys(storedCache).length > 0) {
-                this.stockCache = storedCache;
+            const normalizedCache = this.normalizeStockCache(storedCache);
+            if (Object.keys(normalizedCache).length > 0) {
+                this.stockCache = normalizedCache;
                 this.isStockCacheInitialized = true;
                 console.log(`从本地存储加载了 ${Object.keys(this.stockCache).length} 条股票数据`);
                 return true;
@@ -37,8 +186,11 @@ const stockUtils = {
     saveStockCacheToStorage() {
         try {
             const db = require('./db').default;
-            db.set('stock_code_mapping', this.stockCache);
-            db.set('stock_cache_update_time', new Date().toISOString());
+            this.stockCache = this.normalizeStockCache(this.stockCache);
+            db.setBatch({
+                stock_code_mapping: this.stockCache,
+                stock_cache_update_time: new Date().toISOString()
+            });
             console.log(`保存了 ${Object.keys(this.stockCache).length} 条股票数据到本地存储`);
             return true;
         } catch (error) {
@@ -156,15 +308,17 @@ const stockUtils = {
             let count = await this.fetchAllStockCodesFromMairui();
             
             // 方法2: 如果迈瑞API失败或数据不够，尝试东方财富API
-            if (count < 1000) {
+            if (count < MIN_EXPECTED_A_SHARE_COUNT) {
                 console.log('迈瑞API数据量不足，尝试东方财富API作为补充...');
                 await this.tryEastmoneyApi();
+                count = this.getUniqueStockCount();
             }
             
             // 方法3: 如果数据量还是不够，尝试新浪财经
-            if (Object.keys(this.stockCache).length < 1000) {
+            if (count < MIN_EXPECTED_A_SHARE_COUNT) {
                 console.log('尝试使用新浪财经API获取股票数据...');
                 await this.trySinaApi();
+                count = this.getUniqueStockCount();
             }
 
             console.log(`总共获取到 ${Object.keys(this.stockCache).length} 条股票数据`);
@@ -172,7 +326,7 @@ const stockUtils = {
             // 保存到本地存储
             this.saveStockCacheToStorage();
             
-            return Object.keys(this.stockCache).length;
+            return count;
         } catch (error) {
             console.error('获取股票数据失败:', error);
             
@@ -181,12 +335,69 @@ const stockUtils = {
             this.addBasicStockData();
             this.saveStockCacheToStorage();
             
-            return Object.keys(this.stockCache).length;
+            return this.getUniqueStockCount();
         }
     },
 
     // 尝试东方财富API
     async tryEastmoneyApi() {
+        const beforeCount = this.getUniqueStockCount();
+        let page = 1;
+        let totalPages = 1;
+
+        try {
+            while (page <= totalPages) {
+                const response = await request
+                    .get(EASTMONEY_API_URL)
+                    .query({
+                        pn: page,
+                        pz: EASTMONEY_PAGE_SIZE,
+                        po: 1,
+                        np: 1,
+                        ut: 'bd1d9ddb04089700cf9c27f6f7426281',
+                        fltt: 2,
+                        invt: 2,
+                        fid: 'f3',
+                        fs: 'm:0 t:6,m:0 t:80,m:1 t:2,m:1 t:23,m:0 t:81 s:2048',
+                        fields: 'f12,f14'
+                    })
+                    .timeout(10000);
+
+                const payload = this.parseJsonResponse(response);
+                const data = payload && payload.data ? payload.data : null;
+                const stocks = data && Array.isArray(data.diff) ? data.diff : [];
+
+                if (page === 1) {
+                    const total = Number(data && data.total);
+                    totalPages = total > 0 ? Math.ceil(total / EASTMONEY_PAGE_SIZE) : 1;
+                }
+
+                if (stocks.length === 0) {
+                    break;
+                }
+
+                stocks.forEach(stock => {
+                    if (stock && stock.f12 && stock.f14) {
+                        this.setStockCacheEntry({
+                            code: stock.f12,
+                            name: stock.f14
+                        });
+                    }
+                });
+
+                if (stocks.length < EASTMONEY_PAGE_SIZE) {
+                    break;
+                }
+
+                page += 1;
+            }
+
+            return this.getUniqueStockCount() - beforeCount;
+        } catch (error) {
+            console.log('eastmoney paged fetch failed:', error.message);
+            return 0;
+        }
+
         try {
             console.log('尝试东方财富API...');
             const response = await request
@@ -225,6 +436,54 @@ const stockUtils = {
 
     // 尝试新浪财经API
     async trySinaApi() {
+        const beforeCount = this.getUniqueStockCount();
+        let page = 1;
+
+        try {
+            while (true) {
+                const response = await request
+                    .get('http://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData')
+                    .query({
+                        page,
+                        num: SINA_PAGE_SIZE,
+                        sort: 'symbol',
+                        asc: 1,
+                        node: 'hs_a',
+                        symbol: '',
+                        _s_r_a: 'init'
+                    })
+                    .timeout(15000);
+
+                const data = this.parseJsonResponse(response);
+                const stocks = Array.isArray(data) ? data : [];
+
+                if (stocks.length === 0) {
+                    break;
+                }
+
+                stocks.forEach(stock => {
+                    if (stock && stock.symbol && stock.name) {
+                        this.setStockCacheEntry({
+                            code: stock.symbol,
+                            name: stock.name,
+                            fullCode: stock.symbol
+                        });
+                    }
+                });
+
+                if (stocks.length < SINA_PAGE_SIZE) {
+                    break;
+                }
+
+                page += 1;
+            }
+
+            return this.getUniqueStockCount() - beforeCount;
+        } catch (error) {
+            console.log('sina paged fetch failed:', error.message);
+            return 0;
+        }
+
         try {
             console.log('尝试新浪财经API...');
             const response = await request
@@ -331,7 +590,7 @@ const stockUtils = {
         const db = require('./db').default;
         const updateTime = await db.get('stock_cache_update_time');
         return {
-            count: Object.keys(this.stockCache).length,
+            count: this.getUniqueStockCount(),
             updateTime: updateTime || '未知',
             isInitialized: this.isStockCacheInitialized
         };

@@ -1,8 +1,12 @@
 'use strict';
 
 import path from 'path'
-import fs from 'fs-extra'
+import fsExtra from 'fs-extra'
 import { app } from 'electron'
+
+const EXTERNAL_STORAGE_KEYS = {
+  stock_code_mapping: 'thief_stock_cache.json'
+}
 
 const defaultConfig = {
   current_page: 1,
@@ -45,6 +49,17 @@ const defaultConfig = {
   stock_cache_update_time: null
 }
 
+function cloneDefaultValue(value) {
+  if (Array.isArray(value) || (value && typeof value === 'object')) {
+    return JSON.parse(JSON.stringify(value))
+  }
+  return value
+}
+
+function isExternalStorageKey(key) {
+  return Object.prototype.hasOwnProperty.call(EXTERNAL_STORAGE_KEYS, key)
+}
+
 function getElectronApp() {
   if (process.type === 'renderer') {
     const remote = require('@electron/remote')
@@ -55,8 +70,8 @@ function getElectronApp() {
 
 function safeReadJson(filePath) {
   try {
-    if (!fs.existsSync(filePath)) return null
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'))
+    if (!fsExtra.existsSync(filePath)) return null
+    return JSON.parse(fsExtra.readFileSync(filePath, 'utf8'))
   } catch (_) {
     return null
   }
@@ -67,6 +82,8 @@ export default {
   STORE_PATH: '',
   filePath: '',
   backupFilePath: '',
+  externalFilePaths: {},
+  externalData: {},
   data: {},
   defaultConfig,
 
@@ -76,10 +93,16 @@ export default {
     try {
       const APP = getElectronApp()
       this.STORE_PATH = APP.getPath('userData')
-      fs.ensureDirSync(this.STORE_PATH)
+      fsExtra.ensureDirSync(this.STORE_PATH)
 
       this.filePath = path.join(this.STORE_PATH, 'thief_data.json')
       this.backupFilePath = path.join(this.STORE_PATH, 'thief_data_backup.json')
+      this.externalFilePaths = Object.fromEntries(
+        Object.entries(EXTERNAL_STORAGE_KEYS).map(([key, fileName]) => [
+          key,
+          path.join(this.STORE_PATH, fileName)
+        ])
+      )
 
       let json = safeReadJson(this.filePath)
       if (!json) {
@@ -89,8 +112,29 @@ export default {
         json = {}
       }
 
+      const legacyExternalData = {}
+      Object.keys(EXTERNAL_STORAGE_KEYS).forEach((key) => {
+        if (Object.prototype.hasOwnProperty.call(json, key)) {
+          legacyExternalData[key] = json[key]
+          delete json[key]
+        }
+      })
+
       this.data = Object.assign({}, this.defaultConfig, json)
-      fs.writeFileSync(this.filePath, JSON.stringify(this.data, null, 2), 'utf8')
+
+      Object.keys(EXTERNAL_STORAGE_KEYS).forEach((key) => {
+        const externalJson = safeReadJson(this.externalFilePaths[key])
+        if (externalJson !== null && externalJson !== undefined) {
+          this.externalData[key] = externalJson
+        } else if (Object.prototype.hasOwnProperty.call(legacyExternalData, key)) {
+          this.externalData[key] = legacyExternalData[key]
+          this.persistExternalKey(key)
+        } else {
+          this.externalData[key] = cloneDefaultValue(this.defaultConfig[key])
+        }
+      })
+
+      this.persist()
       this.createBackup()
       this.initialized = true
       return true
@@ -102,8 +146,8 @@ export default {
 
   createBackup() {
     try {
-      if (this.filePath && fs.existsSync(this.filePath)) {
-        fs.copyFileSync(this.filePath, this.backupFilePath)
+      if (this.filePath && fsExtra.existsSync(this.filePath)) {
+        fsExtra.copyFileSync(this.filePath, this.backupFilePath)
         return true
       }
       return false
@@ -113,13 +157,31 @@ export default {
     }
   },
 
+  serializeData() {
+    const serialized = Object.assign({}, this.data)
+    Object.keys(EXTERNAL_STORAGE_KEYS).forEach((key) => {
+      delete serialized[key]
+    })
+    return serialized
+  },
+
   persist() {
-    fs.writeFileSync(this.filePath, JSON.stringify(this.data, null, 2), 'utf8')
+    fsExtra.writeFileSync(this.filePath, JSON.stringify(this.serializeData(), null, 2), 'utf8')
+  },
+
+  persistExternalKey(key) {
+    if (!isExternalStorageKey(key)) {
+      return
+    }
+    fsExtra.writeFileSync(this.externalFilePaths[key], JSON.stringify(this.externalData[key], null, 2), 'utf8')
   },
 
   get(key) {
     if (!this.initialized && !this.init()) {
       return this.defaultConfig[key]
+    }
+    if (isExternalStorageKey(key)) {
+      return this.externalData[key] !== undefined ? this.externalData[key] : cloneDefaultValue(this.defaultConfig[key])
     }
     return this.data[key] !== undefined ? this.data[key] : this.defaultConfig[key]
   },
@@ -127,6 +189,11 @@ export default {
   set(key, value) {
     try {
       if (!this.initialized && !this.init()) return false
+      if (isExternalStorageKey(key)) {
+        this.externalData[key] = value
+        this.persistExternalKey(key)
+        return true
+      }
       this.data[key] = value
       this.persist()
       this.createBackup()
@@ -140,11 +207,20 @@ export default {
   setBatch(configMap) {
     try {
       if (!this.initialized && !this.init()) return false
+      let shouldPersistMain = false
       Object.entries(configMap).forEach(([key, value]) => {
-        this.data[key] = value
+        if (isExternalStorageKey(key)) {
+          this.externalData[key] = value
+          this.persistExternalKey(key)
+        } else {
+          this.data[key] = value
+          shouldPersistMain = true
+        }
       })
-      this.persist()
-      this.createBackup()
+      if (shouldPersistMain) {
+        this.persist()
+        this.createBackup()
+      }
       return true
     } catch (err) {
       console.error('Error setting batch config:', err)
@@ -156,6 +232,10 @@ export default {
     try {
       if (!this.initialized && !this.init()) return false
       this.data = Object.assign({}, this.defaultConfig)
+      Object.keys(EXTERNAL_STORAGE_KEYS).forEach((key) => {
+        this.externalData[key] = cloneDefaultValue(this.defaultConfig[key])
+        this.persistExternalKey(key)
+      })
       this.persist()
       this.createBackup()
       return true
@@ -175,33 +255,40 @@ export default {
   exportConfig(targetPath) {
     try {
       if (!this.initialized && !this.init()) {
-        return { success: false, message: '数据库初始化失败' }
+        return { success: false, message: '\u6570\u636e\u5e93\u521d\u59cb\u5316\u5931\u8d25' }
       }
-      fs.writeFileSync(targetPath, JSON.stringify(this.data, null, 2), 'utf8')
-      return { success: true, message: '配置导出成功' }
+      fsExtra.writeFileSync(targetPath, JSON.stringify(this.serializeData(), null, 2), 'utf8')
+      return { success: true, message: '\u914d\u7f6e\u5bfc\u51fa\u6210\u529f' }
     } catch (err) {
-      return { success: false, message: `导出失败: ${err.message}` }
+      return { success: false, message: `\u5bfc\u51fa\u5931\u8d25: ${err.message}` }
     }
   },
 
   importConfig(sourcePath) {
     try {
       if (!this.initialized && !this.init()) {
-        return { success: false, message: '数据库初始化失败' }
+        return { success: false, message: '\u6570\u636e\u5e93\u521d\u59cb\u5316\u5931\u8d25' }
       }
-      const configContent = fs.readFileSync(sourcePath, 'utf8')
+      const configContent = fsExtra.readFileSync(sourcePath, 'utf8')
       const config = JSON.parse(configContent)
+      if (Object.prototype.hasOwnProperty.call(config, 'stock_code_mapping')) {
+        this.externalData.stock_code_mapping = config.stock_code_mapping || cloneDefaultValue(this.defaultConfig.stock_code_mapping)
+        this.persistExternalKey('stock_code_mapping')
+        delete config.stock_code_mapping
+      }
       this.data = Object.assign({}, this.defaultConfig, config)
       this.persist()
       this.createBackup()
-      return { success: true, message: '配置导入成功' }
+      return { success: true, message: '\u914d\u7f6e\u5bfc\u5165\u6210\u529f' }
     } catch (err) {
-      return { success: false, message: `导入失败: ${err.message}` }
+      return { success: false, message: `\u5bfc\u5165\u5931\u8d25: ${err.message}` }
     }
   },
 
   reloadConfig() {
     this.initialized = false
+    this.externalData = {}
+    this.externalFilePaths = {}
     return this.init()
   }
 }

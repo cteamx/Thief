@@ -290,6 +290,12 @@ async function init() {
 
     createKey();
     createTray();
+
+    setTimeout(() => {
+        if (!settingWindow) {
+            createWindownSetting(false);
+        }
+    }, 1500);
 }
 
 function createVideo() {
@@ -454,11 +460,12 @@ function createSoSetting() {
 }
 
 
-function createWindownSetting() {
+function createWindownSetting(showWhenReady = true) {
     /**
      * Initial window options
      */
     settingWindow = new BrowserWindow(withWindowIcon({
+        show: false,
         title: '设 置',
         useContentSize: true,
         width: 780,
@@ -476,6 +483,11 @@ function createWindownSetting() {
     attachWindowDebug('settingWindow', settingWindow)
     webContents.on('did-finish-load', () => {
         lockWebContentsZoom(webContents, 'settingWindow')
+    })
+    settingWindow.once('ready-to-show', () => {
+        if (showWhenReady && settingWindow) {
+            settingWindow.show()
+        }
     })
 
     settingWindow.loadURL(settingURL)
@@ -1280,15 +1292,9 @@ ipcMain.on('bg_text_color', async function() {
         } catch (_) {}
         tray = null
     }
-    await createKey();
     await createTray(false);
 
     // 重新启动或停止股票监控
-    if (await db.get("limit_up_alert_enabled")) {
-        stockMonitor.startMonitoring();
-    } else {
-        stockMonitor.stopMonitoring();
-    }
 
     if (desktopWindow != null) {
         console.log('向desktopWindow发送bg_text_color消息，携带颜色配置');
@@ -1442,6 +1448,11 @@ ipcMain.on('import-config', (event, path) => {
 });
 
 // 处理股票监控更新
+ipcMain.on('reload_shortcuts_and_tray', async () => {
+    await createKey();
+    await createTray(false);
+});
+
 ipcMain.on('update_stock_monitor', (event, enabled) => {
     console.log('更新股票监控状态:', enabled);
     

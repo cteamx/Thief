@@ -23,6 +23,8 @@
     "build:web": "cross-env BUILD_TARGET=web node .electron-vue/build.js",
     "dev": "node .electron-vue/dev-runner.js",
     "test:display-text": "node test/display-text.test.js",
+    "test:db-storage": "node test/db-storage.test.js",
+    "test:stock-cache": "node test/stock-cache-fetch.test.js",
     "test:stock-monitor": "node test/stock-monitor.test.js",
     "test:stock-format": "node test/stock-format.test.js",
     "test:renderer-config": "node test/renderer-webpack-config.test.js",
