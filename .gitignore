@@ -4,6 +4,7 @@ dist/web/*
 build/*
 !build/icons
 node_modules/
+node_modules
 npm-debug.log
 npm-debug.log.*
 thumbs.db
@@ -11,3 +12,6 @@ thumbs.db
 *.DS_Store
 yarn.lock
 yarn-error.log
+/build/
+/.idea
+/package-lock.json

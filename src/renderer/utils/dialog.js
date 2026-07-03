@@ -1,6 +1,6 @@
 'use strict';
 
-import { remote } from 'electron'
+import remote from '@electron/remote'
 
 export default {
     showOpenFile(callback) {

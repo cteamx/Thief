@@ -1,7 +1,5 @@
 'use strict';
 
-import { remote } from 'electron'
-
 
 const isMac = 'darwin' === process.platform;
 

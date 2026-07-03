@@ -23,7 +23,16 @@ import fs from "fs";
 import hotkeys from "hotkeys-js";
 import { ipcRenderer } from "electron";
 import dialog from "../utils/dialog";
-import PDFJS from "pdfjs-dist";
+// 使用 pdfjs 的 legacy 构建以兼容较旧的 Electron/Chromium（避免 ||= 等 ES2021 语法）
+// 参考：https://github.com/mozilla/pdf.js/
+const PDFJS = require("pdfjs-dist/legacy/build/pdf");
+try {
+  // 设置 worker 脚本（通过打包器生成可用的路径）。
+  // 在老版本的 webpack 配置下使用 require 保持兼容。
+  PDFJS.GlobalWorkerOptions.workerSrc = require("pdfjs-dist/legacy/build/pdf.worker.js");
+} catch (e) {
+  // 失败时继续无 worker 模式，渲染性能可能受影响，但功能可用。
+}
 
 export default {
   name: "pdf",

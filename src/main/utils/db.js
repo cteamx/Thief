@@ -1,153 +1,380 @@
 'use strict';
-import low from 'lowdb'
-import FileSync from 'lowdb/adapters/FileSync'
+
 import path from 'path'
-import fs from 'fs-extra'
-import LodashId from 'lodash-id'
-import { remote, app } from 'electron'
+import fsExtra from 'fs-extra'
+import { app } from 'electron'
+
+const EXTERNAL_STORAGE_KEYS = {
+  stock_code_mapping: 'thief_stock_cache.json'
+}
+
+const defaultConfig = {
+  current_page: 1,
+  page_size: 20,
+  is_english: false,
+  line_break: ' ',
+  current_file_path: '',
+  bg_color: 'rgba(0, 0, 0, 0.5)',
+  txt_color: '#fff',
+  font_size: '14',
+  second: '5',
+  auto_page: '0',
+  key_next: 'Alt+2',
+  key_previous: 'Alt+1',
+  key_boss: 'Alt+3',
+  key_auto: 'Alt+P',
+  errCodeChecked: false,
+  is_mouse: '0',
+  is_display_page: true,
+  is_display_buy1_amount: true,
+  is_display_stock_item_data: true,
+  is_display_stock_today_profit: true,
+  is_display_stock_holding_profit: true,
+  is_display_stock_profit_label: true,
+  stock_profit_separator: '/',
+  is_display_stock_total_today_profit: false,
+  is_display_stock_total_holding_profit: false,
+  stock_color_mode: 'red_up_green_down',
+  display_model: '1',
+  display_shares_list: [],
+  moyu_text: 'Hello',
+  desktop_wh: '',
+  desktop_wz: '',
+  is_ad: 0,
+  limit_up_alert_enabled: true,
+  dingtalk_webhook: 'https://oapi.dingtalk.com/robot/send?access_token=075525de2be812c31c727e4ac783ed2969cf9c8e05974aa2db0d630ac88e95e2',
+  at_phone_numbers: ['17195252748'],
+  curr_model: process.platform === 'darwin' ? '1' : '2',
+  stock_code_mapping: {},
+  stock_cache_update_time: null
+}
+
+function cloneDefaultValue(value) {
+  if (Array.isArray(value) || (value && typeof value === 'object')) {
+    return JSON.parse(JSON.stringify(value))
+  }
+  return value
+}
+
+function isExternalStorageKey(key) {
+  return Object.prototype.hasOwnProperty.call(EXTERNAL_STORAGE_KEYS, key)
+}
+
+function getElectronApp() {
+  if (process.type === 'renderer') {
+    const remote = require('@electron/remote')
+    return remote.app
+  }
+  return app
+}
+
+function safeReadJson(filePath) {
+  try {
+    if (!fsExtra.existsSync(filePath)) return null
+    return JSON.parse(fsExtra.readFileSync(filePath, 'utf8'))
+  } catch (_) {
+    return null
+  }
+}
 
 export default {
-    data() {
-        return {
-            db_util: null,
-            file_json: ""
-        };
-    },
-    init() {
-        // if (process.env.NODE_ENV !== 'development') {
-        //     global.__static = path.join(__dirname, '/static').replace(/\\/g, '\\\\')
-        // }
+  initialized: false,
+  STORE_PATH: '',
+  filePath: '',
+  backupFilePath: '',
+  externalFilePaths: {},
+  externalData: {},
+  externalLoaded: {},
+  externalWriteTimers: {},
+  externalWriteDelayMs: 300,
+  data: {},
+  defaultConfig,
 
-        // if (process.env.DEBUG_ENV === 'debug') {
-        //     global.__static = path.join(__dirname, '../../static').replace(/\\/g, '\\\\')
-        // }
+  init() {
+    if (this.initialized) return true
 
-        let APP = process.type === 'renderer' ? remote.app : app
-        let STORE_PATH = APP.getPath('userData')
-        // let STORE_PATH = "/Users/sanjin/work/h5/vue/thief-book/static"
+    try {
+      const APP = getElectronApp()
+      this.STORE_PATH = APP.getPath('userData')
+      fsExtra.ensureDirSync(this.STORE_PATH)
 
-        if (process.type !== 'renderer') {
-            if (!fs.pathExistsSync(STORE_PATH)) {
-                fs.mkdirpSync(STORE_PATH)
-            }
+      this.filePath = path.join(this.STORE_PATH, 'thief_data.json')
+      this.backupFilePath = path.join(this.STORE_PATH, 'thief_data_backup.json')
+      this.externalFilePaths = Object.fromEntries(
+        Object.entries(EXTERNAL_STORAGE_KEYS).map(([key, fileName]) => [
+          key,
+          path.join(this.STORE_PATH, fileName)
+        ])
+      )
+
+      let json = safeReadJson(this.filePath)
+      if (!json) {
+        json = safeReadJson(this.backupFilePath)
+      }
+      if (!json || typeof json !== 'object') {
+        json = {}
+      }
+
+      const legacyExternalData = {}
+      Object.keys(EXTERNAL_STORAGE_KEYS).forEach((key) => {
+        if (Object.prototype.hasOwnProperty.call(json, key)) {
+          legacyExternalData[key] = json[key]
+          delete json[key]
         }
+      })
 
-        this.file_json = new FileSync(path.join(STORE_PATH, '/thief_data.json'));
+      this.data = Object.assign({}, this.defaultConfig, json)
 
-        this.db_util = low(this.file_json)
-        this.db_util._.mixin(LodashId)
-
-        if (!this.db_util.has('current_page').value()) {
-            this.db_util.set('current_page', 1).write()
+      Object.keys(EXTERNAL_STORAGE_KEYS).forEach((key) => {
+        if (Object.prototype.hasOwnProperty.call(legacyExternalData, key)) {
+          this.externalData[key] = legacyExternalData[key]
+          this.externalLoaded[key] = true
+          this.persistExternalKey(key, { immediate: true })
+        } else {
+          this.externalData[key] = cloneDefaultValue(this.defaultConfig[key])
+          this.externalLoaded[key] = false
         }
+      })
 
-        if (!this.db_util.has('page_size').value()) {
-            this.db_util.set('page_size', 20).write()
-        }
-
-        if (!this.db_util.has('is_english').value()) {
-            this.db_util.set('is_english', false).write()
-        }
-
-        if (!this.db_util.has('line_break').value()) {
-            this.db_util.set('line_break', " ").write()
-        }
-
-        if (!this.db_util.has('current_file_path').value()) {
-            this.db_util.set('current_file_path', "").write()
-        }
-
-        if (!this.db_util.has('bg_color').value()) {
-            this.db_util.set('bg_color', "rgba(0, 0, 0, 0.5)").write()
-        }
-
-        if (!this.db_util.has('txt_color').value()) {
-            this.db_util.set('txt_color', "#fff").write()
-        }
-
-        if (!this.db_util.has('font_size').value()) {
-            this.db_util.set('font_size', "14").write()
-        }
-
-        if (!this.db_util.has('second').value()) {
-            this.db_util.set('second', "5").write()
-        }
-
-        if (!this.db_util.has('auto_page').value()) {
-            this.db_util.set('auto_page', "0").write()
-        }
-
-        if (!this.db_util.has('key_next').value()) {
-            this.db_util.set('key_next', "CmdOrCtrl+Alt+.").write()
-        }
-
-        if (!this.db_util.has('key_previous').value()) {
-            this.db_util.set('key_previous', "CmdOrCtrl+Alt+,").write()
-        }
-
-        if (!this.db_util.has('key_boss').value()) {
-            this.db_util.set('key_boss', "CmdOrCtrl+Alt+M").write()
-        }
-
-        if (!this.db_util.has('key_auto').value()) {
-            this.db_util.set('key_auto', "CmdOrCtrl+Alt+P").write()
-        }
-
-        if (!this.db_util.has('errCodeChecked').value()) {
-            this.db_util.set('errCodeChecked', false).write()
-        }
-
-        if (!this.db_util.has('is_mouse').value()) {
-            this.db_util.set('is_mouse', "0").write()
-        }
-
-        if (!this.db_util.has('is_display_page').value()) {
-            this.db_util.set('is_display_page', true).write()
-        }
-
-        // if (!this.db_util.has('is_display_joke').value()) {
-        //     this.db_util.set('is_display_joke', false).write()
-        // }
-
-        if (!this.db_util.has('display_model').value()) {
-            this.db_util.set('display_model', '1').write()
-        }
-
-        if (!this.db_util.has('display_shares_list').value()) {
-            this.db_util.set('display_shares_list', "").write()
-        }
-
-        if (!this.db_util.has('moyu_text').value()) {
-            this.db_util.set('moyu_text', "Hello").write()
-        }
-
-        if (!this.db_util.has('desktop_wh').value()) {
-            this.db_util.set('desktop_wh', "").write()
-        }
-
-        if (!this.db_util.has('desktop_wz').value()) {
-            this.db_util.set('desktop_wz', "").write()
-        }
-
-        if (!this.db_util.has('is_ad').value()) {
-            this.db_util.set('is_ad', 0).write()
-        }
-
-        let isMac = 'darwin' === process.platform;
-        if (!this.db_util.has('curr_model').value()) {
-            if (isMac) {
-                this.db_util.set('curr_model', "1").write()
-            } else {
-                this.db_util.set('curr_model', "2").write()
-            }
-        }
-    },
-    get(key) {
-        this.init();
-        return this.db_util.get(key).value();
-    },
-    set(key, value) {
-        this.init();
-        this.db_util.set(key, value).write();
+      this.persist()
+      this.createBackup()
+      this.initialized = true
+      return true
+    } catch (err) {
+      console.error('Database initialization error:', err)
+      return false
     }
-};
+  },
+
+  createBackup() {
+    try {
+      if (this.filePath && fsExtra.existsSync(this.filePath)) {
+        fsExtra.copyFileSync(this.filePath, this.backupFilePath)
+        return true
+      }
+      return false
+    } catch (err) {
+      console.error('Failed to create config backup:', err)
+      return false
+    }
+  },
+
+  serializeData() {
+    const serialized = Object.assign({}, this.data)
+    Object.keys(EXTERNAL_STORAGE_KEYS).forEach((key) => {
+      delete serialized[key]
+    })
+    return serialized
+  },
+
+  persist() {
+    fsExtra.writeFileSync(this.filePath, JSON.stringify(this.serializeData(), null, 2), 'utf8')
+  },
+
+  async persistAsync() {
+    await fsExtra.writeFile(this.filePath, JSON.stringify(this.serializeData(), null, 2), 'utf8')
+  },
+
+  async createBackupAsync() {
+    try {
+      if (this.filePath && fsExtra.existsSync(this.filePath)) {
+        await fsExtra.copyFile(this.filePath, this.backupFilePath)
+        return true
+      }
+      return false
+    } catch (err) {
+      console.error('Failed to create config backup:', err)
+      return false
+    }
+  },
+
+  ensureExternalKeyLoaded(key) {
+    if (!isExternalStorageKey(key)) {
+      return
+    }
+
+    if (this.externalLoaded[key]) {
+      return
+    }
+
+    const externalJson = safeReadJson(this.externalFilePaths[key])
+    this.externalData[key] = externalJson !== null && externalJson !== undefined
+      ? externalJson
+      : cloneDefaultValue(this.defaultConfig[key])
+    this.externalLoaded[key] = true
+  },
+
+  persistExternalKey(key, options = {}) {
+    if (!isExternalStorageKey(key)) {
+      return
+    }
+
+    const immediate = options.immediate === true
+    const filePath = this.externalFilePaths[key]
+    const payload = JSON.stringify(this.externalData[key], null, 2)
+
+    if (this.externalWriteTimers[key]) {
+      clearTimeout(this.externalWriteTimers[key])
+      this.externalWriteTimers[key] = null
+    }
+
+    if (immediate) {
+      fsExtra.writeFileSync(filePath, payload, 'utf8')
+      return
+    }
+
+    this.externalWriteTimers[key] = setTimeout(() => {
+      this.externalWriteTimers[key] = null
+      fsExtra.writeFile(filePath, payload, 'utf8').catch((err) => {
+        console.error(`Failed to persist external config '${key}':`, err)
+      })
+    }, this.externalWriteDelayMs)
+  },
+
+  get(key) {
+    if (!this.initialized && !this.init()) {
+      return this.defaultConfig[key]
+    }
+    if (isExternalStorageKey(key)) {
+      this.ensureExternalKeyLoaded(key)
+      return this.externalData[key] !== undefined ? this.externalData[key] : cloneDefaultValue(this.defaultConfig[key])
+    }
+    return this.data[key] !== undefined ? this.data[key] : this.defaultConfig[key]
+  },
+
+  set(key, value) {
+    try {
+      if (!this.initialized && !this.init()) return false
+      if (isExternalStorageKey(key)) {
+        this.ensureExternalKeyLoaded(key)
+        this.externalData[key] = value
+        this.persistExternalKey(key)
+        return true
+      }
+      this.data[key] = value
+      this.persist()
+      this.createBackup()
+      return true
+    } catch (err) {
+      console.error(`Error setting config '${key}':`, err)
+      return false
+    }
+  },
+
+  setBatch(configMap) {
+    try {
+      if (!this.initialized && !this.init()) return false
+      let shouldPersistMain = false
+      Object.entries(configMap).forEach(([key, value]) => {
+        if (isExternalStorageKey(key)) {
+          this.ensureExternalKeyLoaded(key)
+          this.externalData[key] = value
+          this.persistExternalKey(key)
+        } else {
+          this.data[key] = value
+          shouldPersistMain = true
+        }
+      })
+      if (shouldPersistMain) {
+        this.persist()
+        this.createBackup()
+      }
+      return true
+    } catch (err) {
+      console.error('Error setting batch config:', err)
+      return false
+    }
+  },
+
+  async setBatchAsync(configMap) {
+    try {
+      if (!this.initialized && !this.init()) return false
+      let shouldPersistMain = false
+      Object.entries(configMap).forEach(([key, value]) => {
+        if (isExternalStorageKey(key)) {
+          this.ensureExternalKeyLoaded(key)
+          this.externalData[key] = value
+          this.persistExternalKey(key)
+        } else {
+          this.data[key] = value
+          shouldPersistMain = true
+        }
+      })
+      if (shouldPersistMain) {
+        await this.persistAsync()
+        await this.createBackupAsync()
+      }
+      return true
+    } catch (err) {
+      console.error('Error setting batch config:', err)
+      return false
+    }
+  },
+
+  resetToDefault() {
+    try {
+      if (!this.initialized && !this.init()) return false
+      this.data = Object.assign({}, this.defaultConfig)
+      Object.keys(EXTERNAL_STORAGE_KEYS).forEach((key) => {
+        this.externalData[key] = cloneDefaultValue(this.defaultConfig[key])
+        this.externalLoaded[key] = true
+        this.persistExternalKey(key, { immediate: true })
+      })
+      this.persist()
+      this.createBackup()
+      return true
+    } catch (err) {
+      console.error('Failed to reset config to defaults:', err)
+      return false
+    }
+  },
+
+  resetKeyToDefault(key) {
+    if (key in this.defaultConfig) {
+      return this.set(key, this.defaultConfig[key])
+    }
+    return false
+  },
+
+  exportConfig(targetPath) {
+    try {
+      if (!this.initialized && !this.init()) {
+        return { success: false, message: '\u6570\u636e\u5e93\u521d\u59cb\u5316\u5931\u8d25' }
+      }
+      fsExtra.writeFileSync(targetPath, JSON.stringify(this.serializeData(), null, 2), 'utf8')
+      return { success: true, message: '\u914d\u7f6e\u5bfc\u51fa\u6210\u529f' }
+    } catch (err) {
+      return { success: false, message: `\u5bfc\u51fa\u5931\u8d25: ${err.message}` }
+    }
+  },
+
+  importConfig(sourcePath) {
+    try {
+      if (!this.initialized && !this.init()) {
+        return { success: false, message: '\u6570\u636e\u5e93\u521d\u59cb\u5316\u5931\u8d25' }
+      }
+      const configContent = fsExtra.readFileSync(sourcePath, 'utf8')
+      const config = JSON.parse(configContent)
+      if (Object.prototype.hasOwnProperty.call(config, 'stock_code_mapping')) {
+        this.externalData.stock_code_mapping = config.stock_code_mapping || cloneDefaultValue(this.defaultConfig.stock_code_mapping)
+        this.externalLoaded.stock_code_mapping = true
+        this.persistExternalKey('stock_code_mapping', { immediate: true })
+        delete config.stock_code_mapping
+      }
+      this.data = Object.assign({}, this.defaultConfig, config)
+      this.persist()
+      this.createBackup()
+      return { success: true, message: '\u914d\u7f6e\u5bfc\u5165\u6210\u529f' }
+    } catch (err) {
+      return { success: false, message: `\u5bfc\u5165\u5931\u8d25: ${err.message}` }
+    }
+  },
+
+  reloadConfig() {
+    this.initialized = false
+    this.externalData = {}
+    this.externalFilePaths = {}
+    this.externalLoaded = {}
+    return this.init()
+  }
+}

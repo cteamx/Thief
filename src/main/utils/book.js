@@ -13,7 +13,9 @@ export default {
             start: 0,
             end: this.page_size,
             filePath: "",
-            errCode: false
+            oldFilePath: "",
+            errCode: false,
+            fileCache: "",
         };
     },
     getSize(text) {
@@ -23,8 +25,8 @@ export default {
     getFileName() {
         var file_name = this.filePath.split("/").pop();
     },
-    getPage(type) {
-        let curr_page = db.get("current_page");
+    async getPage(type) {
+        let curr_page = await db.get("current_page");
         var page = 0;
 
         if (type === "previous") {
@@ -52,51 +54,55 @@ export default {
         this.start = this.curr_page_number * this.page_size;
         this.end = this.curr_page_number * this.page_size - this.page_size;
     },
-    readFile() {
+    async readFile() {
         if (this.filePath === "" || typeof (this.filePath) === "undefined") {
             return "请选择TXT小说路径"
         }
 
-        try {
-            var data = fs.readFileSync(this.filePath);
+        if (this.filePath !== this.oldFilePath) {
+            try {
+                var data = fs.readFileSync(this.filePath);
 
-            if (this.errCode) {
-                data = iconv.decode(data, 'gb2312');
-            } else {
-                data = iconv.decode(data, 'utf-8');
+                if (this.errCode) {
+                    data = iconv.decode(data, 'gb2312');
+                } else {
+                    data = iconv.decode(data, 'utf-8');
+                }
+                this.oldFilePath = this.filePath
+                var line_break = await db.get("line_break");
+                data = data.toString().replace(/\n/g, line_break).replace(/\r/g, " ").replace(/　　/g, " ").replace(/ /g, " ");
+                this.fileCache = data
+            } catch (error) {
+                return "TXT小说路径不存在或路径不正确"
             }
-        } catch (error) {
-            return "TXT小说路径不存在或路径不正确"
         }
 
-        var line_break = db.get("line_break");
-
-        return data.toString().replace(/\n/g, line_break).replace(/\r/g, " ").replace(/　　/g, " ").replace(/ /g, " ");
+        return this.fileCache
     },
-    init() {
-        this.filePath = db.get("current_file_path");
-        this.errCode = db.get("errCodeChecked");
-        var is_english = db.get("is_english");
-        var curr_model = db.get("curr_model");
+    async init() {
+        this.filePath = await db.get("current_file_path");
+        this.errCode = await db.get("errCodeChecked");
+        var is_english = await db.get("is_english");
+        var curr_model = await db.get("curr_model");
 
         if (is_english === true) {
             if (curr_model === "1") {
-                this.page_size = db.get("page_size");
+                this.page_size = await db.get("page_size");
             } else {
-                this.page_size = db.get("page_size");
+                this.page_size = await db.get("page_size");
             }
         } else {
             if (curr_model === "1") {
-                this.page_size = db.get("page_size");
+                this.page_size = await db.get("page_size");
             } else {
-                this.page_size = db.get("page_size");
+                this.page_size = await db.get("page_size");
             }
         }
     },
-    soText(so) {
-        this.init();
+    async soText(so) {
+        await this.init();
         // 小说搜索
-        let text = this.readFile();
+        let text = await this.readFile();
         this.getSize(text);
 
         // 存储搜索结果
@@ -128,35 +134,35 @@ export default {
 
         return soResult;
     },
-    makePage(text) {
+    async makePage(text) {
         this.getStartEnd();
         this.updatePage();
-        if (db.get("is_display_page")) {
+        if (await db.get("is_display_page")) {
             var page_info = this.curr_page_number.toString() + "/" + this.page.toString();
             return text.substring(this.start, this.end) + "    " + page_info;
         } else {
             return text.substring(this.start, this.end)
         }
     },
-    getPreviousPage() {
-        this.init();
-        let text = this.readFile();
+    async getPreviousPage() {
+        await this.init();
+        let text = await this.readFile();
         this.getSize(text);
-        this.getPage("previous");
-        return this.makePage(text);
+        await this.getPage("previous");
+        return await this.makePage(text);
     },
-    getNextPage() {
-        this.init();
-        let text = this.readFile();
+    async getNextPage() {
+        await this.init();
+        let text = await this.readFile();
         this.getSize(text);
-        this.getPage("next");
-        return this.makePage(text);
+        await this.getPage("next");
+        return await this.makePage(text);
     },
-    getJumpingPage() {
-        this.init();
-        let text = this.readFile();
+    async getJumpingPage() {
+        await this.init();
+        let text = await this.readFile();
         this.getSize(text);
-        this.getPage("curr");
-        return this.makePage(text);
+        await this.getPage("curr");
+        return await this.makePage(text);
     }
 };
