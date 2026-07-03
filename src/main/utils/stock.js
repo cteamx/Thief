@@ -11,12 +11,17 @@ const headers = {
 
 // 东方财富API地址
 const EASTMONEY_API_URL = 'http://80.push2.eastmoney.com/api/qt/clist/get';
-const MIN_EXPECTED_A_SHARE_COUNT = 5000;
-const EASTMONEY_PAGE_SIZE = 2000;
+const EASTMONEY_A_SHARE_FILTER = 'm:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048';
+const MIN_EXPECTED_A_SHARE_COUNT = 5300;
+const EASTMONEY_PAGE_SIZE = 100;
+const EASTMONEY_FETCH_CONCURRENCY = 8;
+const EASTMONEY_PAGE_TIMEOUT_MS = 15000;
 const SINA_PAGE_SIZE = 2000;
 
 const stockUtils = {
     stockCache: {},
+    stockSearchIndex: [],
+    isStockSearchIndexDirty: true,
     normalizeStockCode(code) {
         const normalized = String(code || '')
             .trim()
@@ -56,32 +61,46 @@ const stockUtils = {
         return 'SZ';
     },
 
-    insertStockCacheEntry(cache, stockInfo) {
-        if (!cache || !stockInfo) {
-            return false;
+    createNormalizedStock(stockInfo) {
+        if (!stockInfo) {
+            return null;
         }
 
         const code = this.normalizeStockCode(stockInfo.code);
         const name = String(stockInfo.name || '').trim();
         if (!code || !name) {
-            return false;
+            return null;
         }
 
         const fullCode = String(stockInfo.fullCode || code).trim() || code;
-        const normalizedStock = {
+        return {
             code,
             name,
             fullCode,
             exchange: this.inferExchangeFromCode(code, fullCode, stockInfo.exchange)
         };
+    },
 
-        cache[code] = normalizedStock;
-        cache[name] = normalizedStock;
+    insertStockCacheEntry(cache, stockInfo) {
+        if (!cache || !stockInfo) {
+            return false;
+        }
+
+        const normalizedStock = this.createNormalizedStock(stockInfo);
+        if (!normalizedStock) {
+            return false;
+        }
+
+        cache[normalizedStock.code] = normalizedStock;
         return true;
     },
 
     setStockCacheEntry(stockInfo) {
-        return this.insertStockCacheEntry(this.stockCache, stockInfo);
+        const inserted = this.insertStockCacheEntry(this.stockCache, stockInfo);
+        if (inserted) {
+            this.isStockSearchIndexDirty = true;
+        }
+        return inserted;
     },
 
     normalizeStockCache(cache) {
@@ -108,31 +127,37 @@ const stockUtils = {
     },
 
     getUniqueStockCount() {
-        const codes = new Set();
+        return Object.keys(this.stockCache).length;
+    },
 
+    async fetchAndMergeStockCache(fetcher) {
+        const previousCache = this.normalizeStockCache(this.stockCache);
+        await fetcher.call(this);
+        this.stockCache = this.normalizeStockCache(Object.assign({}, previousCache, this.stockCache));
+        this.isStockSearchIndexDirty = true;
+        return this.getUniqueStockCount();
+    },
+
+    rebuildStockSearchIndex() {
+        const dedupedMap = new Map();
         Object.values(this.stockCache).forEach(stockInfo => {
-            if (stockInfo && typeof stockInfo === 'object' && stockInfo.code) {
-                const code = this.normalizeStockCode(stockInfo.code);
-                if (code) {
-                    codes.add(code);
-                }
+            if (!stockInfo || typeof stockInfo !== 'object' || !stockInfo.code || !stockInfo.name) {
+                return;
+            }
+            const normalizedStock = this.createNormalizedStock(stockInfo);
+            if (normalizedStock && !dedupedMap.has(normalizedStock.code)) {
+                dedupedMap.set(normalizedStock.code, normalizedStock);
             }
         });
+        this.stockSearchIndex = Array.from(dedupedMap.values());
+        this.isStockSearchIndexDirty = false;
+    },
 
-        if (codes.size > 0) {
-            return codes.size;
+    ensureStockSearchIndex() {
+        if (this.isStockSearchIndexDirty) {
+            this.rebuildStockSearchIndex();
         }
-
-        Object.entries(this.stockCache).forEach(([key, value]) => {
-            if (typeof value === 'string') {
-                const code = this.normalizeStockCode(key);
-                if (code) {
-                    codes.add(code);
-                }
-            }
-        });
-
-        return codes.size;
+        return this.stockSearchIndex;
     },
 
     parseJsonResponse(response) {
@@ -162,6 +187,45 @@ const stockUtils = {
 
         return null;
     },
+
+    async fetchEastmoneyPage(page) {
+        let lastError = null;
+
+        for (let attempt = 1; attempt <= 2; attempt += 1) {
+            try {
+                const response = await request
+                    .get(EASTMONEY_API_URL)
+                    .query({
+                        pn: page,
+                        pz: EASTMONEY_PAGE_SIZE,
+                        po: 1,
+                        np: 1,
+                        ut: 'bd1d9ddb04089700cf9c27f6f7426281',
+                        fltt: 2,
+                        invt: 2,
+                        fid: 'f3',
+                        fs: EASTMONEY_A_SHARE_FILTER,
+                        fields: 'f12,f14'
+                    })
+                    .timeout(EASTMONEY_PAGE_TIMEOUT_MS);
+
+                const payload = this.parseJsonResponse(response);
+                const data = payload && payload.data ? payload.data : null;
+                const stocks = data && Array.isArray(data.diff) ? data.diff : [];
+
+                return {
+                    total: Number(data && data.total) || 0,
+                    stocks
+                };
+            } catch (error) {
+                lastError = error;
+                await new Promise(resolve => setTimeout(resolve, attempt * 300));
+            }
+        }
+
+        console.log(`eastmoney page ${page} fetch failed:`, lastError ? lastError.message : 'unknown error');
+        return null;
+    },
     isStockCacheInitialized: false, // 添加标志位
 
     // 从本地存储加载股票缓存
@@ -172,6 +236,7 @@ const stockUtils = {
             const normalizedCache = this.normalizeStockCache(storedCache);
             if (Object.keys(normalizedCache).length > 0) {
                 this.stockCache = normalizedCache;
+                this.isStockSearchIndexDirty = true;
                 this.isStockCacheInitialized = true;
                 console.log(`从本地存储加载了 ${Object.keys(this.stockCache).length} 条股票数据`);
                 return true;
@@ -187,6 +252,7 @@ const stockUtils = {
         try {
             const db = require('./db').default;
             this.stockCache = this.normalizeStockCache(this.stockCache);
+            this.isStockSearchIndexDirty = true;
             db.setBatch({
                 stock_code_mapping: this.stockCache,
                 stock_cache_update_time: new Date().toISOString()
@@ -287,6 +353,8 @@ const stockUtils = {
                 });
                 
                 console.log(`迈瑞API数据处理完成，缓存中共有 ${Object.keys(this.stockCache).length} 条记录`);
+                this.stockCache = this.normalizeStockCache(this.stockCache);
+                this.isStockSearchIndexDirty = true;
                 return stockData.length;
             } else {
                 console.error('迈瑞API返回数据格式不正确');
@@ -304,21 +372,19 @@ const stockUtils = {
         this.stockCache = {}; // 清空现有缓存
         
         try {
-            // 方法1: 优先使用迈瑞API
-            let count = await this.fetchAllStockCodesFromMairui();
+            // 方法1: 优先使用东方财富分页 API
+            let count = await this.fetchAndMergeStockCache(this.tryEastmoneyApi);
             
-            // 方法2: 如果迈瑞API失败或数据不够，尝试东方财富API
+            // 方法2: 如果东方财富数据不够，尝试新浪财经补充
             if (count < MIN_EXPECTED_A_SHARE_COUNT) {
-                console.log('迈瑞API数据量不足，尝试东方财富API作为补充...');
-                await this.tryEastmoneyApi();
-                count = this.getUniqueStockCount();
+                console.log('东方财富数据量不足，尝试新浪财经作为补充...');
+                count = await this.fetchAndMergeStockCache(this.trySinaApi);
             }
             
-            // 方法3: 如果数据量还是不够，尝试新浪财经
+            // 方法3: 如果数据量还是不够，尝试迈瑞 API 补充
             if (count < MIN_EXPECTED_A_SHARE_COUNT) {
-                console.log('尝试使用新浪财经API获取股票数据...');
-                await this.trySinaApi();
-                count = this.getUniqueStockCount();
+                console.log('新浪补充后数据仍不足，尝试迈瑞API作为补充...');
+                count = await this.fetchAndMergeStockCache(this.fetchAllStockCodesFromMairui);
             }
 
             console.log(`总共获取到 ${Object.keys(this.stockCache).length} 条股票数据`);
@@ -342,96 +408,46 @@ const stockUtils = {
     // 尝试东方财富API
     async tryEastmoneyApi() {
         const beforeCount = this.getUniqueStockCount();
-        let page = 1;
-        let totalPages = 1;
-
-        try {
-            while (page <= totalPages) {
-                const response = await request
-                    .get(EASTMONEY_API_URL)
-                    .query({
-                        pn: page,
-                        pz: EASTMONEY_PAGE_SIZE,
-                        po: 1,
-                        np: 1,
-                        ut: 'bd1d9ddb04089700cf9c27f6f7426281',
-                        fltt: 2,
-                        invt: 2,
-                        fid: 'f3',
-                        fs: 'm:0 t:6,m:0 t:80,m:1 t:2,m:1 t:23,m:0 t:81 s:2048',
-                        fields: 'f12,f14'
-                    })
-                    .timeout(10000);
-
-                const payload = this.parseJsonResponse(response);
-                const data = payload && payload.data ? payload.data : null;
-                const stocks = data && Array.isArray(data.diff) ? data.diff : [];
-
-                if (page === 1) {
-                    const total = Number(data && data.total);
-                    totalPages = total > 0 ? Math.ceil(total / EASTMONEY_PAGE_SIZE) : 1;
+        const addStocks = (stocks) => {
+            stocks.forEach(stock => {
+                if (stock && stock.f12 && stock.f14) {
+                    this.setStockCacheEntry({
+                        code: stock.f12,
+                        name: stock.f14
+                    });
                 }
+            });
+        };
 
-                if (stocks.length === 0) {
-                    break;
-                }
-
-                stocks.forEach(stock => {
-                    if (stock && stock.f12 && stock.f14) {
-                        this.setStockCacheEntry({
-                            code: stock.f12,
-                            name: stock.f14
-                        });
-                    }
-                });
-
-                if (stocks.length < EASTMONEY_PAGE_SIZE) {
-                    break;
-                }
-
-                page += 1;
-            }
-
-            return this.getUniqueStockCount() - beforeCount;
-        } catch (error) {
-            console.log('eastmoney paged fetch failed:', error.message);
+        const firstPage = await this.fetchEastmoneyPage(1);
+        if (!firstPage || firstPage.stocks.length === 0) {
             return 0;
         }
 
-        try {
-            console.log('尝试东方财富API...');
-            const response = await request
-                .get('http://80.push2.eastmoney.com/api/qt/clist/get')
-                .query({
-                    pn: 1,
-                    pz: 5000,
-                    po: 1,
-                    np: 1,
-                    ut: 'bd1d9ddb04089700cf9c27f6f7426281',
-                    fltt: 2,
-                    invt: 2,
-                    fid: 'f3',
-                    fs: 'm:0 t:6,m:0 t:80,m:1 t:2,m:1 t:23',
-                    fields: 'f12,f14'
-                })
-                .timeout(10000);
+        addStocks(firstPage.stocks);
 
-            if (response && response.body && response.body.data && response.body.data.diff) {
-                const stocks = response.body.data.diff;
-                stocks.forEach(stock => {
-                    if (stock && stock.f12 && stock.f14) {
-                        const code = String(stock.f12);
-                        const name = String(stock.f14).trim();
-                        if (code && name) {
-                            this.stockCache[code] = name;
-                        }
-                    }
-                });
-                console.log(`东方财富API获取到 ${stocks.length} 条股票数据`);
-            }
-        } catch (error) {
-            console.log('东方财富API失败:', error.message);
+        const totalPages = firstPage.total > 0
+            ? Math.ceil(firstPage.total / EASTMONEY_PAGE_SIZE)
+            : 1;
+        const remainingPages = [];
+
+        for (let page = 2; page <= totalPages; page += 1) {
+            remainingPages.push(page);
         }
+
+        for (let index = 0; index < remainingPages.length; index += EASTMONEY_FETCH_CONCURRENCY) {
+            const batchPages = remainingPages.slice(index, index + EASTMONEY_FETCH_CONCURRENCY);
+            const pageResults = await Promise.all(batchPages.map(page => this.fetchEastmoneyPage(page)));
+
+            pageResults.forEach(result => {
+                if (result && result.stocks.length > 0) {
+                    addStocks(result.stocks);
+                }
+            });
+        }
+
+        return this.getUniqueStockCount() - beforeCount;
+
     },
 
     // 尝试新浪财经API
@@ -484,40 +500,6 @@ const stockUtils = {
             return 0;
         }
 
-        try {
-            console.log('尝试新浪财经API...');
-            const response = await request
-                .get('http://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData')
-                .query({
-                    page: 1,
-                    num: 5000,
-                    sort: 'symbol',
-                    asc: 1,
-                    node: 'hs_a',
-                    symbol: '',
-                    _s_r_a: 'init'
-                })
-                .timeout(15000);
-
-            if (response && response.body) {
-                const data = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
-                
-                if (Array.isArray(data)) {
-                    data.forEach(stock => {
-                        if (stock && stock.symbol && stock.name) {
-                            const code = stock.symbol.replace(/^(sh|sz)/, '');
-                            const name = stock.name.trim();
-                            if (code && name && !this.stockCache[code]) { // 避免覆盖已有数据
-                                this.stockCache[code] = name;
-                            }
-                        }
-                    });
-                    console.log(`新浪财经API获取到 ${data.length} 条股票数据`);
-                }
-            }
-        } catch (error) {
-            console.log('新浪财经API失败:', error.message);
-        }
     },
 
     // 添加基础股票数据作为备用
@@ -558,20 +540,14 @@ const stockUtils = {
         ];
         
         basicStocks.forEach(stock => {
-            this.stockCache[stock.code] = {
+            this.setStockCacheEntry({
                 code: stock.code,
                 name: stock.name,
                 fullCode: stock.code,
                 exchange: stock.code.startsWith('6') ? 'SH' : 'SZ'
-            };
+            });
             
-            // 同时以名称为键存储
-            this.stockCache[stock.name] = {
-                code: stock.code,
-                name: stock.name,
-                fullCode: stock.code,
-                exchange: stock.code.startsWith('6') ? 'SH' : 'SZ'
-            };
+            // 缓存仅按代码存储；搜索时走 stockSearchIndex。
         });
         
         console.log(`添加了 ${basicStocks.length} 条基础股票数据`);
@@ -613,7 +589,7 @@ const stockUtils = {
         }
 
         // 遍历股票缓存
-        for (const [key, stockInfo] of Object.entries(this.stockCache)) {
+        for (const stockInfo of this.ensureStockSearchIndex()) {
             if (!stockInfo || typeof stockInfo !== 'object') {
                 continue;
             }
@@ -664,7 +640,7 @@ const stockUtils = {
         const results = [];
         const lowerQuery = query.toLowerCase();
 
-        for (const [key, stockInfo] of Object.entries(this.stockCache)) {
+        for (const stockInfo of this.ensureStockSearchIndex()) {
             if (typeof stockInfo === 'object' && stockInfo.code && stockInfo.name) {
                 const { code, name } = stockInfo;
                 if (code.toLowerCase().startsWith(lowerQuery) || name.toLowerCase().startsWith(lowerQuery)) {

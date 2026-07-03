@@ -1286,13 +1286,7 @@ ipcMain.on('bg_text_color', async function() {
     
     console.log('读取到的最新颜色配置:', colorConfig);
     
-    if (tray) {
-        try {
-            tray.destroy()
-        } catch (_) {}
-        tray = null
-    }
-    await createTray(false);
+    // Keep save fast: color/font updates do not need tray recreation.
 
     // 重新启动或停止股票监控
 
@@ -1309,8 +1303,6 @@ ipcMain.on('bg_text_color', async function() {
     } else {
         console.log('desktopBarWindow为null，无法发送消息');
     }
-
-    await refreshCurrentDisplay();
 })
 
 ipcMain.on('jump_page', function() {
@@ -1451,6 +1443,19 @@ ipcMain.on('import-config', (event, path) => {
 ipcMain.on('reload_shortcuts_and_tray', async () => {
     await createKey();
     await createTray(false);
+});
+
+ipcMain.handle('save_config', async (_event, configData) => {
+    try {
+        const success = await db.setBatchAsync(configData);
+        return { success };
+    } catch (error) {
+        console.error('save_config failed:', error);
+        return {
+            success: false,
+            message: error.message
+        };
+    }
 });
 
 ipcMain.on('update_stock_monitor', (event, enabled) => {

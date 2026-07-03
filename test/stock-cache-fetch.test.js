@@ -62,8 +62,8 @@ function createEastmoneyPage(start, count) {
         return {
           body: {
             data: {
-              total: 2501,
-              diff: createEastmoneyPage(1, 2000)
+              total: 201,
+              diff: createEastmoneyPage(1, 100)
             }
           }
         };
@@ -73,8 +73,19 @@ function createEastmoneyPage(start, count) {
         return {
           body: {
             data: {
-              total: 2501,
-              diff: createEastmoneyPage(2001, 501)
+              total: 201,
+              diff: createEastmoneyPage(101, 100)
+            }
+          }
+        };
+      }
+
+      if (query.pn === 3) {
+        return {
+          body: {
+            data: {
+              total: 201,
+              diff: createEastmoneyPage(201, 1)
             }
           }
         };
@@ -95,20 +106,21 @@ function createEastmoneyPage(start, count) {
   stockUtilsWithPaging.stockCache = {};
   const fetchedCount = await stockUtilsWithPaging.tryEastmoneyApi();
 
-  assert.strictEqual(fetchedCount, 2501);
-  assert.strictEqual(stockUtilsWithPaging.getUniqueStockCount(), 2501);
-  assert.strictEqual(eastmoneyQueries.length, 2);
+  assert.strictEqual(fetchedCount, 201);
+  assert.strictEqual(stockUtilsWithPaging.getUniqueStockCount(), 201);
+  assert.strictEqual(eastmoneyQueries.length, 3);
   assert.strictEqual(eastmoneyQueries[0].pn, 1);
   assert.strictEqual(eastmoneyQueries[1].pn, 2);
-  assert.strictEqual(eastmoneyQueries[0].pz, 2000);
-  assert.ok(eastmoneyQueries[0].fs.includes('m:0 t:81 s:2048'));
+  assert.strictEqual(eastmoneyQueries[2].pn, 3);
+  assert.strictEqual(eastmoneyQueries[0].pz, 100);
+  assert.ok(eastmoneyQueries[0].fs.includes('m:0+t:81+s:2048'));
   assert.deepStrictEqual(stockUtilsWithPaging.stockCache['000001'], {
     code: '000001',
     name: 'Stock000001',
     fullCode: '000001',
     exchange: 'SZ'
   });
-  assert.deepStrictEqual(stockUtilsWithPaging.stockCache.Stock000001, stockUtilsWithPaging.stockCache['000001']);
+  assert.strictEqual(stockUtilsWithPaging.stockCache.Stock000001, undefined);
 
   const stockUtilsWithFallback = loadStockUtils();
   let usedEastmoneyFallback = false;
@@ -143,7 +155,7 @@ function createEastmoneyPage(start, count) {
   const totalCount = await stockUtilsWithFallback.fetchAllStockCodesFromEastMoney();
 
   assert.strictEqual(usedEastmoneyFallback, true);
-  assert.strictEqual(usedSinaFallback, false);
+  assert.strictEqual(usedSinaFallback, true);
   assert.strictEqual(totalCount, 5100);
   assert.strictEqual(stockUtilsWithFallback.getUniqueStockCount(), 5100);
 
@@ -152,13 +164,20 @@ function createEastmoneyPage(start, count) {
     '600000': 'PfBank'
   });
   stockUtilsWithFallback.stockCache = normalized;
+  stockUtilsWithFallback.isStockSearchIndexDirty = true;
+  stockUtilsWithFallback.isStockCacheInitialized = true;
   assert.strictEqual(stockUtilsWithFallback.getUniqueStockCount(), 2);
-  assert.deepStrictEqual(stockUtilsWithFallback.stockCache.PingAn, {
+  assert.deepStrictEqual(stockUtilsWithFallback.stockCache['000001'], {
     code: '000001',
     name: 'PingAn',
     fullCode: '000001',
     exchange: 'SZ'
   });
+  assert.strictEqual(stockUtilsWithFallback.stockCache.PingAn, undefined);
+  assert.deepStrictEqual(
+    stockUtilsWithFallback.searchStocks('Ping'),
+    [{ code: '000001', name: 'PingAn' }]
+  );
 
   console.log('stock cache fetch tests passed');
 })().catch(error => {

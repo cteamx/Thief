@@ -633,7 +633,7 @@ export default {
         that.form.file_path = e[0];
       });
     },
-    onSubmit() {
+    async onSubmit() {
       const configData = this.buildConfigData();
       const shortcutChanged = this.hasConfigChanged(
         ["key_previous", "key_next", "key_boss", "key_auto"],
@@ -643,10 +643,48 @@ export default {
         ["display_shares_list", "limit_up_alert_enabled", "dingtalk_webhook", "at_phone_numbers"],
         configData
       );
+      const styleChanged = this.hasConfigChanged(
+        ["bg_color", "txt_color", "font_size"],
+        configData
+      );
+      const displayChanged = this.hasConfigChanged(
+        [
+          "current_page",
+          "page_size",
+          "is_english",
+          "line_break",
+          "current_file_path",
+          "is_display_page",
+          "is_display_buy1_amount",
+          "is_display_stock_item_data",
+          "is_display_stock_today_profit",
+          "is_display_stock_holding_profit",
+          "is_display_stock_profit_label",
+          "stock_profit_separator",
+          "is_display_stock_total_today_profit",
+          "is_display_stock_total_holding_profit",
+          "stock_color_mode",
+          "display_shares_list",
+          "moyu_text"
+        ],
+        configData
+      );
 
-      if (!db.setBatch(configData)) {
+      let saveResponse;
+      try {
+        saveResponse = await ipcRenderer.invoke("save_config", configData);
+      } catch (error) {
         this.$message({
-          message: "\u4fdd\u5b58\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5",
+          message: error && error.message ? error.message : "\u4fdd\u5b58\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5",
+          type: "error",
+          showClose: true
+        });
+        return;
+      }
+
+      if (!saveResponse || !saveResponse.success) {
+        this.$message({
+          message: saveResponse && saveResponse.message ? saveResponse.message : "\u4fdd\u5b58\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5",
           type: "error",
           showClose: true
         });
@@ -663,7 +701,13 @@ export default {
         ipcRenderer.send("update_stock_monitor", configData.limit_up_alert_enabled);
       }
 
-      ipcRenderer.send("bg_text_color", "ping");
+      if (styleChanged) {
+        ipcRenderer.send("bg_text_color", "ping");
+      }
+
+      if (displayChanged) {
+        ipcRenderer.send("refresh_current_display");
+      }
 
       this.$message({
         message: "\u4fdd\u5b58\u6210\u529f",

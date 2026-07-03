@@ -84,6 +84,9 @@ export default {
   backupFilePath: '',
   externalFilePaths: {},
   externalData: {},
+  externalLoaded: {},
+  externalWriteTimers: {},
+  externalWriteDelayMs: 300,
   data: {},
   defaultConfig,
 
@@ -123,14 +126,13 @@ export default {
       this.data = Object.assign({}, this.defaultConfig, json)
 
       Object.keys(EXTERNAL_STORAGE_KEYS).forEach((key) => {
-        const externalJson = safeReadJson(this.externalFilePaths[key])
-        if (externalJson !== null && externalJson !== undefined) {
-          this.externalData[key] = externalJson
-        } else if (Object.prototype.hasOwnProperty.call(legacyExternalData, key)) {
+        if (Object.prototype.hasOwnProperty.call(legacyExternalData, key)) {
           this.externalData[key] = legacyExternalData[key]
-          this.persistExternalKey(key)
+          this.externalLoaded[key] = true
+          this.persistExternalKey(key, { immediate: true })
         } else {
           this.externalData[key] = cloneDefaultValue(this.defaultConfig[key])
+          this.externalLoaded[key] = false
         }
       })
 
@@ -169,11 +171,64 @@ export default {
     fsExtra.writeFileSync(this.filePath, JSON.stringify(this.serializeData(), null, 2), 'utf8')
   },
 
-  persistExternalKey(key) {
+  async persistAsync() {
+    await fsExtra.writeFile(this.filePath, JSON.stringify(this.serializeData(), null, 2), 'utf8')
+  },
+
+  async createBackupAsync() {
+    try {
+      if (this.filePath && fsExtra.existsSync(this.filePath)) {
+        await fsExtra.copyFile(this.filePath, this.backupFilePath)
+        return true
+      }
+      return false
+    } catch (err) {
+      console.error('Failed to create config backup:', err)
+      return false
+    }
+  },
+
+  ensureExternalKeyLoaded(key) {
     if (!isExternalStorageKey(key)) {
       return
     }
-    fsExtra.writeFileSync(this.externalFilePaths[key], JSON.stringify(this.externalData[key], null, 2), 'utf8')
+
+    if (this.externalLoaded[key]) {
+      return
+    }
+
+    const externalJson = safeReadJson(this.externalFilePaths[key])
+    this.externalData[key] = externalJson !== null && externalJson !== undefined
+      ? externalJson
+      : cloneDefaultValue(this.defaultConfig[key])
+    this.externalLoaded[key] = true
+  },
+
+  persistExternalKey(key, options = {}) {
+    if (!isExternalStorageKey(key)) {
+      return
+    }
+
+    const immediate = options.immediate === true
+    const filePath = this.externalFilePaths[key]
+    const payload = JSON.stringify(this.externalData[key], null, 2)
+
+    if (this.externalWriteTimers[key]) {
+      clearTimeout(this.externalWriteTimers[key])
+      this.externalWriteTimers[key] = null
+    }
+
+    if (immediate) {
+      fsExtra.writeFileSync(filePath, payload, 'utf8')
+      return
+    }
+
+    this.externalWriteTimers[key] = setTimeout(() => {
+      this.externalWriteTimers[key] = null
+      fsExtra.writeFile(filePath, payload, 'utf8').catch((err) => {
+        console.error(`Failed to persist external config '${key}':`, err)
+      })
+    }, this.externalWriteDelayMs)
   },
 
   get(key) {
@@ -181,6 +236,7 @@ export default {
       return this.defaultConfig[key]
     }
     if (isExternalStorageKey(key)) {
+      this.ensureExternalKeyLoaded(key)
       return this.externalData[key] !== undefined ? this.externalData[key] : cloneDefaultValue(this.defaultConfig[key])
     }
     return this.data[key] !== undefined ? this.data[key] : this.defaultConfig[key]
@@ -190,6 +246,7 @@ export default {
     try {
       if (!this.initialized && !this.init()) return false
       if (isExternalStorageKey(key)) {
+        this.ensureExternalKeyLoaded(key)
         this.externalData[key] = value
         this.persistExternalKey(key)
         return true
@@ -210,6 +267,7 @@ export default {
       let shouldPersistMain = false
       Object.entries(configMap).forEach(([key, value]) => {
         if (isExternalStorageKey(key)) {
+          this.ensureExternalKeyLoaded(key)
           this.externalData[key] = value
           this.persistExternalKey(key)
         } else {
@@ -228,13 +286,39 @@ export default {
     }
   },
 
+  async setBatchAsync(configMap) {
+    try {
+      if (!this.initialized && !this.init()) return false
+      let shouldPersistMain = false
+      Object.entries(configMap).forEach(([key, value]) => {
+        if (isExternalStorageKey(key)) {
+          this.ensureExternalKeyLoaded(key)
+          this.externalData[key] = value
+          this.persistExternalKey(key)
+        } else {
+          this.data[key] = value
+          shouldPersistMain = true
+        }
+      })
+      if (shouldPersistMain) {
+        await this.persistAsync()
+        await this.createBackupAsync()
+      }
+      return true
+    } catch (err) {
+      console.error('Error setting batch config:', err)
+      return false
+    }
+  },
+
   resetToDefault() {
     try {
       if (!this.initialized && !this.init()) return false
       this.data = Object.assign({}, this.defaultConfig)
       Object.keys(EXTERNAL_STORAGE_KEYS).forEach((key) => {
         this.externalData[key] = cloneDefaultValue(this.defaultConfig[key])
-        this.persistExternalKey(key)
+        this.externalLoaded[key] = true
+        this.persistExternalKey(key, { immediate: true })
       })
       this.persist()
       this.createBackup()
@@ -273,7 +357,8 @@ export default {
       const config = JSON.parse(configContent)
       if (Object.prototype.hasOwnProperty.call(config, 'stock_code_mapping')) {
         this.externalData.stock_code_mapping = config.stock_code_mapping || cloneDefaultValue(this.defaultConfig.stock_code_mapping)
-        this.persistExternalKey('stock_code_mapping')
+        this.externalLoaded.stock_code_mapping = true
+        this.persistExternalKey('stock_code_mapping', { immediate: true })
         delete config.stock_code_mapping
       }
       this.data = Object.assign({}, this.defaultConfig, config)
@@ -289,6 +374,7 @@ export default {
     this.initialized = false
     this.externalData = {}
     this.externalFilePaths = {}
+    this.externalLoaded = {}
     return this.init()
   }
 }
